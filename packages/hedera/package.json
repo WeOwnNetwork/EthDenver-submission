@@ -1,0 +1,44 @@
+{
+    "name": "@repo/hedera",
+    "version": "0.1.0",
+    "type": "commonjs",
+    "private": true,
+    "scripts": {
+        "dev": "tsc --watch",
+        "build": "tsc",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
+        "bootstrap": "tsx src/bootstrap.ts",
+        "create-topic": "tsx src/hcs-attestor.ts --create-all"
+    },
+    "exports": {
+        "./hcs": {
+            "types": "./src/hcs-attestor.ts",
+            "default": "./dist/hcs-attestor.js"
+        },
+        "./config": {
+            "types": "./src/config.ts",
+            "default": "./dist/config.js"
+        },
+        "./tokens": {
+            "types": "./src/tokens/index.ts",
+            "default": "./dist/tokens/index.js"
+        }
+    },
+    "devDependencies": {
+        "@repo/typescript-config": "workspace:*",
+        "@types/node": "^20.10.0",
+        "eslint": "^9.15.0",
+        "typescript": "5.9.2"
+    },
+    "dependencies": {
+        "@hashgraph/sdk": "^2.80.0",
+        "@vitest/coverage-v8": "^4.0.18",
+        "axios": "^1.13.5",
+        "dotenv": "^17.3.1",
+        "tsx": "^4.21.0",
+        "typescript": "^5.9.3",
+        "vitest": "^4.0.18"
+    }
+}
