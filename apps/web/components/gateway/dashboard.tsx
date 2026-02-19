@@ -4,12 +4,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ChatPanel } from "./chat-panel";
 import { OnchainFeed } from "./onchain-feed";
 import { GovernancePanel } from "./governance-panel";
-import { MessageSquare, Activity, Scale } from "lucide-react";
+import { HederaPanel } from "./hedera-panel";
+import { MessageSquare, Activity, Scale, Hexagon } from "lucide-react";
 
 export function Dashboard() {
     return (
         <Tabs defaultValue="chat" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-slate-900/50 border border-slate-800/50 h-12">
+            <TabsList className="grid w-full grid-cols-4 bg-slate-900/50 border border-slate-800/50 h-12">
                 <TabsTrigger value="chat" className="flex items-center gap-2 data-[state=active]:bg-slate-800">
                     <MessageSquare className="w-4 h-4" />
                     <span className="hidden sm:inline">Chat</span>
@@ -22,6 +23,10 @@ export function Dashboard() {
                     <Scale className="w-4 h-4" />
                     <span className="hidden sm:inline">Governance</span>
                 </TabsTrigger>
+                <TabsTrigger value="hedera" className="flex items-center gap-2 data-[state=active]:bg-slate-800">
+                    <Hexagon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Hedera</span>
+                </TabsTrigger>
             </TabsList>
 
             <TabsContent value="chat">
@@ -32,6 +37,9 @@ export function Dashboard() {
             </TabsContent>
             <TabsContent value="governance">
                 <GovernancePanel />
+            </TabsContent>
+            <TabsContent value="hedera">
+                <HederaPanel />
             </TabsContent>
         </Tabs>
     );

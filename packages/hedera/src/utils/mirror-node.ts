@@ -39,7 +39,7 @@ export class MirrorNode {
             return;
         }
 
-        console.table(logs.map(l => ({
+        console.table(logs.map((l: any) => ({
             Time: l.time.split('T')[1].replace('Z', ''),
             Type: l.type,
             Status: l.status === 'SUCCESS' ? '✅ SUCCESS' : `❌ ${l.status}`,

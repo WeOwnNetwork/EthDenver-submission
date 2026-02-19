@@ -202,3 +202,47 @@ export function useSendVolley() {
         },
     });
 }
+
+// ═══════════════════════════════════════════════════════
+// HEDERA TOKEN FUNCTIONS
+// ═══════════════════════════════════════════════════════
+
+export async function getTokenRegistry() {
+    return gw<{
+        tokens: Record<string, string | null>;
+        hcsTopics: Record<string, string | null>;
+        hederaAccount: string | null;
+        hcsStats: { messageCount: number; topicCount: number };
+    }>("/tokens");
+}
+
+export async function tokenAction(action: string, payload: Record<string, unknown> = {}) {
+    return gw("/tokens", {
+        method: "POST",
+        body: JSON.stringify({ action, ...payload }),
+    });
+}
+
+/** Fetch Hedera token registry */
+export function useTokenRegistry() {
+    return useQuery({
+        queryKey: ["token-registry"],
+        queryFn: () => getTokenRegistry(),
+        refetchInterval: 30_000,
+        refetchOnWindowFocus: false,
+    });
+}
+
+/** Mutation: execute a Hedera token action */
+export function useTokenAction() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ action, ...payload }: { action: string;[key: string]: unknown }) =>
+            tokenAction(action, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["token-registry"] });
+            qc.invalidateQueries({ queryKey: ["gateway-stats"] });
+            qc.invalidateQueries({ queryKey: ["gateway-events"] });
+        },
+    });
+}

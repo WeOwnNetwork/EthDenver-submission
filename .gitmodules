@@ -1,0 +1,3 @@
+[submodule "packages/adi/lib/openzeppelin-contracts"]
+	path = packages/adi/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts

@@ -4,9 +4,8 @@
         "lib": [
             "ES2022"
         ],
-        "module": "nodenext",
-        "target": "ES2022",
-        "outDir": "dist"
+        "module": "commonjs",
+        "target": "ES2022"
     },
     "exclude": [
         "node_modules",
