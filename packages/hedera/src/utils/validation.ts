@@ -32,7 +32,7 @@ export async function validateTokenType(
         // SDK returns info.tokenType which is the enum
 
         // Debug log
-        console.log(`    ℹ️ Token ${tokenId} Type: ${info.tokenType.toString()}`);
+        console.log(`    ℹ️ Token ${tokenId} Type: ${info.tokenType?.toString()}`);
 
         return info.tokenType === expectedType;
     } catch (error) {

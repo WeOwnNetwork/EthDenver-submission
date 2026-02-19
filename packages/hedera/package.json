@@ -15,15 +15,15 @@
     "exports": {
         "./hcs": {
             "types": "./src/hcs-attestor.ts",
-            "default": "./dist/hcs-attestor.js"
+            "default": "./dist/src/hcs-attestor.js"
         },
         "./config": {
             "types": "./src/config.ts",
-            "default": "./dist/config.js"
+            "default": "./dist/src/config.js"
         },
         "./tokens": {
             "types": "./src/tokens/index.ts",
-            "default": "./dist/tokens/index.js"
+            "default": "./dist/src/tokens/index.js"
         }
     },
     "devDependencies": {
