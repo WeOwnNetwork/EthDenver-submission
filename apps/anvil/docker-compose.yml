@@ -1,0 +1,17 @@
+services:
+  anvil-service:
+    build:
+      context: ../..
+      dockerfile: apps/anvil/Dockerfile
+    container_name: anvil-service
+    ports:
+      - "3004:3004"
+      - "8545:8545"
+    environment:
+      ANVIL_HOST: 0.0.0.0
+      ANVIL_PORT: 8545
+      ANVIL_CHAIN_ID: 99999
+      # ANVIL_FORK_URL: https://rpc.ab.testnet.adifoundation.ai
+      # ADI_FORK_URL: https://rpc.ab.testnet.adifoundation.ai
+    volumes:
+      - ./data:/app/apps/anvil/.data

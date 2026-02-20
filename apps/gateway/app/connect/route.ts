@@ -5,6 +5,7 @@ import { glog } from "../lib/logger";
 import crypto from "crypto";
 
 export const POST = async (request: Request): Promise<Response> => {
+    const start = Date.now();
     try {
         const body = await request.json();
         const parsed = ConnectSchema.parse(body);
@@ -32,7 +33,7 @@ export const POST = async (request: Request): Promise<Response> => {
             contributor: parsed.contributor || parsed.ccc,
             role: parsed.contributorRole || "contributor",
             tier: parsed.tier,
-            homeInstance: gateway.instance,
+            homeInstance: parsed.homeInstance || gateway.instance,
             hederaAccountId: parsed.hederaAccountId || "",
             baseAddress: parsed.baseAddress || "",
             registeredAt: new Date().toISOString(),
@@ -46,18 +47,29 @@ export const POST = async (request: Request): Promise<Response> => {
                 contributor: agent.contributor,
                 role: agent.role,
                 tier: agent.tier,
-                home_instance: gateway.instance,
+                home_instance: agent.homeInstance,
                 hedera_account_id: agent.hederaAccountId,
                 base_address: agent.baseAddress,
             });
         });
 
-        gateway.eventLog.push({
-            id: crypto.randomUUID(),
+        const eventId = crypto.randomUUID();
+        await gateway.recordGatewayEvent({
+            id: eventId,
             type: "CONNECT",
             agent: agent.agentId,
-            timestamp: new Date().toISOString(),
             summary: `${agent.agentId} registered (${agent.tier})`,
+            payload: {
+                ccc: parsed.ccc,
+                tier: agent.tier,
+                homeInstance: agent.homeInstance,
+            },
+        });
+
+        await gateway.logMetric({
+            agentId: agent.agentId,
+            latencyMs: Date.now() - start,
+            metadata: { type: "CONNECT", eventId },
         });
 
         glog.agentRegistered(parsed.ccc, agent.tier);

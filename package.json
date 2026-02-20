@@ -4,6 +4,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:wireup": "node ./scripts/monorepo-wireup.mjs dev",
+    "start:wireup": "node ./scripts/monorepo-wireup.mjs start",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"

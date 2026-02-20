@@ -3,7 +3,7 @@
 //
 // Single `callLLM()` function that routes to:
 //   - Ollama (native /api/chat)
-//   - vLLM / llama.cpp / cloud (OpenAI-compatible)
+//   - Cloud / Local (OpenAI-compatible)
 // ═══════════════════════════════════════════════════════
 //import {} from "axios"
 export interface ChatMessage {
@@ -29,6 +29,7 @@ export interface ChatResult {
 
 /** Map provider IDs to their OpenAI-compatible API base URLs */
 const CLOUD_BASE_URLS: Record<string, string> = {
+    openai: "https://api.openai.com/v1",
     openrouter: "https://openrouter.ai/api/v1",
     together: "https://api.together.xyz/v1",
     groq: "https://api.groq.com/openai/v1",
@@ -76,7 +77,7 @@ async function callOllama(
         throw new Error(`Ollama error (${res.status}): ${text}`);
     }
 
-    const data = await res.json();
+    const data = (await res.json()) as any;
     return {
         content: data.message?.content || "",
         model,
@@ -120,7 +121,7 @@ async function callOpenAICompat(
         throw new Error(`${providerId} error (${res.status}): ${text}`);
     }
 
-    const data = await res.json();
+    const data = (await res.json()) as any;
     return {
         content: data.choices?.[0]?.message?.content || "",
         model,

@@ -1,0 +1,18 @@
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/build
+**/coverage
+**/.DS_Store
+.git
+.gitignore
+.vscode
+
+# Local env files (runtime env should be injected)
+**/.env
+**/.env.*
+
+# Python cache
+**/__pycache__
+**/*.pyc

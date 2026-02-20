@@ -1,53 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
-import "../src/core/AgentIdentityRegistry.sol";
-import "../src/core/AgentReputationRegistry.sol";
-import "../src/core/AgentValidationRegistry.sol";
-import "../src/governance/CCCGovernanceToken.sol";
-import "../src/governance/SharedKernelRegistry.sol";
-import "../src/governance/SeasonRegistry.sol";
-import "../src/governance/ISCRegistry.sol";
+import "./utils/DeployedContracts.t.sol";
 import "../src/attestation/VSARegistry.sol";
-import "../src/attestation/DocumentRegistry.sol";
-import "../src/ccc/CCCIdRegistry.sol";
+import "../src/governance/SharedKernelRegistry.sol";
 
 /// @title Integration Test - Full ERC-8004 x FedArch E2E Flow
-contract IntegrationTest is Test {
-    AgentIdentityRegistry public identity;
-    AgentReputationRegistry public reputation;
-    AgentValidationRegistry public validation;
-    CCCGovernanceToken public ccc;
-    SharedKernelRegistry public kernel;
-    SeasonRegistry public seasons;
-    ISCRegistry public isc;
-    VSARegistry public vsa;
-    DocumentRegistry public docs;
-    CCCIdRegistry public cccIds;
-
-    address public gateway = address(0x1);
-    address public validator = address(0x2);
+contract IntegrationTest is DeployedContracts {
     address public ldcWallet = address(0x10);
     address public shdWallet = address(0x11);
-
-    function setUp() public {
-        ccc = new CCCGovernanceToken(gateway);
-        kernel = new SharedKernelRegistry(gateway);
-        seasons = new SeasonRegistry(gateway);
-        isc = new ISCRegistry(gateway);
-        identity = new AgentIdentityRegistry(gateway, gateway, 3);
-        reputation = new AgentReputationRegistry(gateway, address(identity));
-        validation = new AgentValidationRegistry(
-            gateway,
-            validator,
-            address(identity),
-            address(reputation)
-        );
-        vsa = new VSARegistry(gateway);
-        docs = new DocumentRegistry(gateway);
-        cccIds = new CCCIdRegistry(gateway);
-    }
 
     function test_FullETHDenverFlow() public {
         // 1. Register agents

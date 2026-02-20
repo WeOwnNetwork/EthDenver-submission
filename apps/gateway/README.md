@@ -1,5 +1,83 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
 
+## ADL Testnet Persistent Indexer
+
+This app now includes a persistent ADL testnet indexer for deployed `@repo/adi` contracts.
+
+### Required env for indexing
+
+- `ADI_RPC_URL`
+- `CONTRACT_IDENTITY`
+- `CONTRACT_REPUTATION`
+- `CONTRACT_VALIDATION`
+- `CONTRACT_SHARED_KERNEL`
+- `CONTRACT_SEASON`
+- `CONTRACT_ISC`
+- `CONTRACT_BAD_AGENT`
+- `CONTRACT_VSA`
+- `CONTRACT_DOCUMENT`
+- `CONTRACT_CCC_ID`
+- `CONTRACT_CCC_TOKEN`
+
+Optional:
+
+- `ADI_INDEX_STORAGE_PATH` (default: `apps/gateway/.data/adl-onchain-index.json`)
+- `ADI_INDEX_START_BLOCK` (first block for initial sync)
+
+### API
+
+- `GET /events?count=50` → merged gateway + onchain indexed feed
+- `GET /events?count=50&sync=1` → force sync before returning
+- `GET /stats` → includes `onchain` + `onchainIndex`
+- `GET /onchain?count=100` → raw indexed onchain view
+- `GET /onchain?count=100&sync=1` → force sync + return raw index data
+- `GET /infra` → anvil microservice + ADI runtime status
+- `POST /infra` → force re-bootstrap from anvil microservice
+- `GET /persistence` → persistence diagnostics + recent persisted events
+
+## Persistence verification quick checks
+
+1) Trigger writes through gateway APIs (examples):
+
+- `POST /connect`
+- `POST /broadcast`
+- `POST /ccc-id`
+- `POST /volley`
+
+2) Verify API-level persistence snapshots:
+
+- `GET /persistence?count=20`
+- `GET /events?count=20`
+- `GET /stats` (check `data.persistence`)
+
+3) Verify directly in TimescaleDB (same database from `TIMESCALEDB_URL`):
+
+- `SELECT COUNT(*) FROM volley_events;`
+- `SELECT event_type, COUNT(*) FROM volley_events GROUP BY event_type ORDER BY COUNT(*) DESC;`
+- `SELECT time, event_id, agent_id, event_type, status FROM volley_events ORDER BY time DESC LIMIT 20;`
+
+4) Restart gateway, then re-run step 2 and step 3. Event rows should remain present.
+
+## Anvil microservice integration
+
+Gateway can consume a dedicated `apps/anvil` microservice that manages:
+
+- persistent local Anvil process
+- ADI deploy-if-needed
+- contract address hydration for gateway runtime
+
+Set in gateway env:
+
+- `ANVIL_SERVICE_URL` (example: `http://localhost:3004`)
+- `ANVIL_SERVICE_BOOTSTRAP=1` (default behavior)
+
+On startup, gateway calls `POST /adi/bootstrap` on that service and refreshes ADI clients + onchain indexer in-process.
+
+Manual trigger endpoints in gateway:
+
+- `POST /infra` → force re-bootstrap from anvil microservice
+- `POST /onchain/bootstrap` → force re-bootstrap + onchain index refresh payload
+
 ## Getting Started
 
 First, run the development server:

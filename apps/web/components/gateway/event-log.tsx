@@ -19,8 +19,12 @@ export function EventLog() {
     useEffect(() => {
         const load = async () => {
             const res = await getEvents(100);
-            if (res.ok)
-                setEvents((res.data?.events || []) as any[]);
+            if (res.ok) {
+                const events = Array.isArray(res.data)
+                    ? res.data
+                    : (res.data?.events || []);
+                setEvents(events as any[]);
+            }
         };
         load();
         const interval = setInterval(load, 3000);

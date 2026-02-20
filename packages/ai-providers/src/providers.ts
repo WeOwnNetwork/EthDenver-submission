@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════════════
 // @repo/ai-providers — LLM Provider Registry
 //
-// 6 providers: self-hosted (Ollama), bare-metal (vLLM,
-// llama.cpp), cloud (OpenRouter, Together, Groq).
+// 8 providers: self-hosted (Ollama), bare-metal (vLLM,
+// llama.cpp), cloud (OpenRouter, Together, Groq,
+// Perplexity, OpenAI).
 // ═══════════════════════════════════════════════════════
 
 export interface LLMProvider {
@@ -131,6 +132,23 @@ export const LLM_PROVIDERS: LLMProvider[] = [
         ],
         configFields: [
             { key: "apiKey", label: "Perplexity API Key", type: "password", placeholder: "pplx-...", required: true },
+        ],
+    },
+    {
+        id: "openai",
+        name: "OpenAI",
+        type: "cloud",
+        icon: "🤖",
+        description: "Industry standard models (GPT-4o, GPT-4o-mini).",
+        models: [
+            { id: "gpt-4o", name: "GPT-4o", contextWindow: 128_000, recommended: true },
+            { id: "gpt-4o-mini", name: "GPT-4o-mini", contextWindow: 128_000 },
+            { id: "gpt-4-turbo", name: "GPT-4 Turbo", contextWindow: 128_000 },
+            { id: "o1-preview", name: "o1-preview", contextWindow: 128_000 },
+            { id: "o1-mini", name: "o1-mini", contextWindow: 128_000 },
+        ],
+        configFields: [
+            { key: "apiKey", label: "OpenAI API Key", type: "password", placeholder: "sk-...", required: true },
         ],
     },
 ];

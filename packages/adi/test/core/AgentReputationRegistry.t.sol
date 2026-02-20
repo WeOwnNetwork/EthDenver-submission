@@ -1,21 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
-import "../../src/core/AgentIdentityRegistry.sol";
-import "../../src/core/AgentReputationRegistry.sol";
+import "../utils/DeployedContracts.t.sol";
+import "../../src/interfaces/IAgentReputationRegistry.sol";
 
-contract AgentReputationRegistryTest is Test {
-    AgentReputationRegistry public reputation;
-    address public gateway = address(0x1);
-
-    function setUp() public {
-        AgentIdentityRegistry identity = new AgentIdentityRegistry(
-            gateway,
-            address(this),
-            3
-        );
-        reputation = new AgentReputationRegistry(gateway, address(identity));
+contract AgentReputationRegistryTest is DeployedContracts {
+    function setUp() public override {
+        super.setUp();
         vm.prank(gateway);
         identity.register("LDC", "ipfs://QmLDC");
     }

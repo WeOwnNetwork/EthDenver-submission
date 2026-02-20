@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
+import "../utils/DeployedContracts.t.sol";
 import "../../src/core/AgentIdentityRegistry.sol";
 
-contract AgentIdentityRegistryTest is Test {
+contract AgentIdentityRegistryTest is DeployedContracts {
     AgentIdentityRegistry public registry;
-    address public gateway = address(0x1);
-    address public governance = address(0x2);
 
-    function setUp() public {
-        registry = new AgentIdentityRegistry(gateway, governance, 3);
+    function setUp() public override {
+        super.setUp();
+        registry = identity;
     }
 
     function test_RegisterAgent() public {

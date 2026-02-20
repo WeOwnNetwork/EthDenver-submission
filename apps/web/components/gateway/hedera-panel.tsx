@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { useTokenRegistry, useTokenAction } from "@/lib/gateway-client";
 import { toast } from "sonner";
@@ -97,7 +97,7 @@ function TokenCard({ def, tokenId }: { def: TokenDef; tokenId: string | null }) 
 export function HederaPanel() {
     const { data, isLoading, error } = useTokenRegistry();
     const mutation = useTokenAction();
-    const { ccc } = useAppStore();
+    const { ccc, tokenRegistryCache, setTokenRegistryCache } = useAppStore();
 
     // Mint form state
     const [mintTokenId, setMintTokenId] = useState("");
@@ -112,9 +112,39 @@ export function HederaPanel() {
 
     const registry = data?.data;
 
+    const resolvedTokens = useMemo(() => {
+        const liveTokens = registry?.tokens || {};
+
+        return Object.fromEntries(
+            TOKEN_DEFS.map((def) => {
+                const live = liveTokens[def.key as keyof typeof liveTokens] as string | null | undefined;
+                const cached = tokenRegistryCache[def.key] ?? null;
+                return [def.key, live || cached || null];
+            }),
+        ) as Record<string, string | null>;
+    }, [registry?.tokens, tokenRegistryCache]);
+
+    useEffect(() => {
+        const liveTokens = registry?.tokens;
+        if (!liveTokens) return;
+
+        const hasAnyLiveToken = Object.values(liveTokens).some(Boolean);
+        if (!hasAnyLiveToken) return;
+
+        setTokenRegistryCache(liveTokens as Record<string, string | null | undefined>);
+    }, [registry?.tokens, setTokenRegistryCache]);
+
     const handleAction = async (action: string, payload: Record<string, unknown>, label: string) => {
         try {
-            await mutation.mutateAsync({ action, ...payload });
+            const result = await mutation.mutateAsync({ action, ...payload });
+
+            if (action === "bootstrap" && result?.ok && result?.data && typeof result.data === "object") {
+                const dataPayload = result.data as { registry?: Record<string, string> };
+                if (dataPayload.registry) {
+                    setTokenRegistryCache(dataPayload.registry);
+                }
+            }
+
             toast.success(`✅ ${label} — success`);
         } catch (err) {
             toast.error(`❌ ${label} failed: ${err}`);
@@ -178,7 +208,7 @@ export function HederaPanel() {
                             <TokenCard
                                 key={def.key}
                                 def={def}
-                                tokenId={registry?.tokens?.[def.key] ?? null}
+                                tokenId={resolvedTokens[def.key] ?? null}
                             />
                         ))}
                     </div>
@@ -215,7 +245,7 @@ export function HederaPanel() {
                                 <div>
                                     <Label className="text-xs text-slate-500">Token ID</Label>
                                     <Input
-                                        value={mintTokenId || registry?.tokens?.CCC_TOKEN || ""}
+                                        value={mintTokenId || resolvedTokens.CCC_TOKEN || ""}
                                         onChange={(e) => setMintTokenId(e.target.value)}
                                         placeholder="0.0.XXXXXX"
                                         className="mt-1 bg-slate-800/50 border-slate-700/50 font-mono text-xs"
@@ -244,7 +274,7 @@ export function HederaPanel() {
                             <Button
                                 onClick={() =>
                                     handleAction("mint-ccc", {
-                                        tokenId: mintTokenId || registry?.tokens?.CCC_TOKEN || "",
+                                        tokenId: mintTokenId || resolvedTokens.CCC_TOKEN || "",
                                         cccId: mintCccId,
                                         sequence: Number(mintSequence) || 4,
                                     }, "Mint $CCC")
@@ -310,7 +340,7 @@ export function HederaPanel() {
                                 <div>
                                     <Label className="text-xs text-slate-500">CCC Token ID</Label>
                                     <Input
-                                        value={freezeTokenId || registry?.tokens?.CCC_TOKEN || ""}
+                                        value={freezeTokenId || resolvedTokens.CCC_TOKEN || ""}
                                         onChange={(e) => setFreezeTokenId(e.target.value)}
                                         placeholder="0.0.XXXXXX"
                                         className="mt-1 bg-slate-800/50 border-slate-700/50 font-mono text-xs"
@@ -338,7 +368,7 @@ export function HederaPanel() {
                             <Button
                                 onClick={() =>
                                     handleAction("freeze-bad-agent", {
-                                        cccTokenId: freezeTokenId || registry?.tokens?.CCC_TOKEN || "",
+                                        cccTokenId: freezeTokenId || resolvedTokens.CCC_TOKEN || "",
                                         agentAccountId: freezeAccountId,
                                         reason: freezeReason,
                                     }, "Freeze Agent")

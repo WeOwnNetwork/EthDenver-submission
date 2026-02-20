@@ -1,7 +1,7 @@
 import { gateway } from "../lib/gateway";
 
-export const GET = (): Response =>
+export const GET = async (): Promise<Response> =>
     Response.json({
         status: "healthy",
-        ...gateway.getStats(),
+        ...(await gateway.getStats()),
     });

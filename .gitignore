@@ -45,4 +45,3 @@ yarn-error.log*
 ## for the foundry contracts deployment
 **/broadcast/
 **/cache/
-config.bat

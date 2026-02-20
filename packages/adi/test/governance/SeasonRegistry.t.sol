@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
+import "../utils/DeployedContracts.t.sol";
 import "../../src/governance/SeasonRegistry.sol";
 
-contract SeasonRegistryTest is Test {
-    SeasonRegistry public seasons;
-    address public governance = address(0x1);
-
-    function setUp() public {
-        seasons = new SeasonRegistry(governance);
-    }
+contract SeasonRegistryTest is DeployedContracts {
 
     function test_Bootstrapped() public view {
         assertEq(seasons.currentSeason(), 3);
@@ -41,3 +35,4 @@ contract SeasonRegistryTest is Test {
         assertEq(s.totalVSAs, 10);
     }
 }
+
