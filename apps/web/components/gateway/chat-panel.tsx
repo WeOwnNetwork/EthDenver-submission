@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useAppStore } from "@/lib/store";
-import { useGenerateCCCId } from "@/lib/gateway-client";
-import { callLLM, type ChatMessage as LLMMessage } from "@repo/ai-providers/chat";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useAppStore, type PersistedChatMessage } from "@/lib/store";
+import { useGenerateCCCId, useCallLLM } from "@/lib/gateway-client";
+import { type ChatMessage as LLMMessage } from "@repo/ai-providers/chat";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Send, Hash, Zap, MessageSquare } from "lucide-react";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useAccount } from "wagmi";
 
 interface Message {
     id: string;
@@ -23,19 +24,75 @@ interface Message {
 }
 
 export function ChatPanel() {
-    const { ccc, llmProvider, llmModel, llmConfig } = useAppStore();
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: "welcome",
-            role: "system",
-            content: `Welcome to CCC Gateway, AI:@${ccc}! 🤝\n\nYou're connected to #FedArch with **${llmProvider}** (${llmModel}).\n\nType a message to start contributing. Every interaction generates a CCC-ID attested to Hedera.`,
-            timestamp: new Date(),
-        },
-    ]);
+    const {
+        ccc,
+        llmProvider,
+        llmModel,
+        llmConfig,
+        walletAddress,
+        getSessionKey,
+        setChatHistory,
+        sessionHistory,
+    } = useAppStore();
+    const { address } = useAccount();
+
+    const sessionKey = useMemo(
+        () => getSessionKey(address || walletAddress, ccc),
+        [address, walletAddress, ccc, getSessionKey]
+    );
+
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isThinking, setIsThinking] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const generateCCCId = useGenerateCCCId();
+    const llm = useCallLLM();
+
+    const defaultWelcome = useMemo<Message>(
+        () => ({
+            id: "welcome",
+            role: "system",
+            content: `Welcome to CCC Gateway, AI:@${ccc}! 🤝\n\nYou're connected to #FedArch with **${llmProvider}** (${llmModel}).\n\nType a message to start contributing. Every interaction generates a CCC-ID attested to Hedera.`,
+            timestamp: new Date(),
+        }),
+        [ccc, llmProvider, llmModel]
+    );
+
+    useEffect(() => {
+        if (!sessionKey) {
+            setMessages([defaultWelcome]);
+            return;
+        }
+
+        const history = sessionHistory[sessionKey];
+        if (!history?.chat?.length) {
+            setMessages([defaultWelcome]);
+            return;
+        }
+
+        const hydrated = history.chat.map((m: PersistedChatMessage) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+        }));
+
+        setMessages(hydrated);
+    }, [sessionKey, defaultWelcome]);
+
+    useEffect(() => {
+        if (!sessionKey || messages.length === 0) return;
+
+        setChatHistory(
+            sessionKey,
+            messages.map((m) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                agentId: m.agentId,
+                cccId: m.cccId,
+                timestamp: m.timestamp.toISOString(),
+            }))
+        );
+    }, [messages, sessionKey, setChatHistory]);
 
     useEffect(() => {
         scrollRef.current?.scrollTo({
@@ -76,7 +133,7 @@ export function ChatPanel() {
                 setMessages((prev) => [...prev, cccIdMsg]);
             }
 
-            // Call LLM
+            // Call LLM Proxy
             const llmMessages: LLMMessage[] = [
                 {
                     role: "system",
@@ -85,12 +142,18 @@ export function ChatPanel() {
                 { role: "user", content: prompt },
             ];
 
-            const result = await callLLM({
+            const gwResult = await llm.mutateAsync({
                 providerId: llmProvider || "ollama",
                 model: llmModel || "llama3.2:3b",
                 config: llmConfig || {},
                 messages: llmMessages,
             });
+
+            if (!gwResult.ok || !gwResult.data) {
+                throw new Error(gwResult.error || "Failed to get LLM response");
+            }
+
+            const result = gwResult.data;
 
             const assistantMsg: Message = {
                 id: crypto.randomUUID(),

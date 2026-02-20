@@ -1,5 +1,27 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
 
+## Monorepo integration (gateway + anvil)
+
+This app talks to `apps/gateway` through:
+
+- `NEXT_PUBLIC_API_URL` (default: `http://localhost:3002`)
+
+Gateway can bootstrap ADI local fork infra through `apps/anvil` microservice.
+
+In the dashboard settings panel, the **Infrastructure** section now shows:
+
+- anvil microservice status
+- ADI client configuration status
+- hydrated contract count
+- a **Re-bootstrap Gateway Infra** action
+
+Required for full local fork flow:
+
+- run `apps/anvil` on port `3004`
+- set in `apps/gateway/.env`:
+	- `ANVIL_SERVICE_URL=http://localhost:3004`
+	- `ANVIL_SERVICE_BOOTSTRAP=1`
+
 ## Getting Started
 
 First, run the development server:

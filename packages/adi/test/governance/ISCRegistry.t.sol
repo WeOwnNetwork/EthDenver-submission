@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
+import "../utils/DeployedContracts.t.sol";
 import "../../src/governance/ISCRegistry.sol";
 
-contract ISCRegistryTest is Test {
-    ISCRegistry public isc;
-    address public certifier = address(0x1);
-
-    function setUp() public {
-        isc = new ISCRegistry(certifier);
+contract ISCRegistryTest is DeployedContracts {
+    function setUp() public override {
+        super.setUp();
+        certifier = governance;
     }
+
+    address public certifier;
 
     function test_SubmitFullCert() public {
         bool[8] memory checks = [

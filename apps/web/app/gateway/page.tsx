@@ -9,12 +9,18 @@ import { StatsCards } from "@/components/gateway/stats-cards";
 import { Dashboard } from "@/components/gateway/dashboard";
 
 export default function GatewayPage() {
-    const { isConnected, isConnecting } = useAccount();
-    const { onboarded } = useAppStore();
+    const { isConnected, isConnecting, address } = useAccount();
+    const { onboarded, walletAddress, setWallet } = useAppStore();
 
     // Mounted guard — prevents SSR/CSR hydration mismatch on wallet state
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => setIsMounted(true), []);
+
+    useEffect(() => {
+        if (!isConnected || !address) return;
+        if ((walletAddress || "").toLowerCase() === address.toLowerCase()) return;
+        setWallet(address);
+    }, [isConnected, address, walletAddress, setWallet]);
 
     // Show loading spinner while connecting or pre-mount
     if (!isMounted || isConnecting) {

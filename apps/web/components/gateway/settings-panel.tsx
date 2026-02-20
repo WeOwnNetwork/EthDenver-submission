@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAccount, useDisconnect } from "wagmi";
 import { useAppStore } from "@/lib/store";
+import { useBootstrapInfra, useInfraStatus } from "@/lib/gateway-client";
 import {
     LLM_PROVIDERS,
     type LLMProvider,
@@ -15,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Save, Trash2, LogOut, X } from "lucide-react";
+import { Save, Trash2, LogOut, X, Server, RefreshCw, Database } from "lucide-react";
 
 interface SettingsPanelProps {
     onClose: () => void;
@@ -25,6 +26,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     const store = useAppStore();
     const { address } = useAccount();
     const { disconnect } = useDisconnect();
+    const { data: infraResponse, isLoading: infraLoading } = useInfraStatus();
+    const bootstrapInfra = useBootstrapInfra();
 
     // Profile
     const [ccc, setCcc] = useState(store.ccc || "");
@@ -36,6 +39,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     const currentModel = currentProvider?.models.find(m => m.id === store.llmModel);
     const [selectedModel, setSelectedModel] = useState<LLMModel | null>(currentModel || null);
     const [llmConfig, setLlmConfig] = useState<Record<string, string>>(store.llmConfig || {});
+
+    const sessionKey = useMemo(
+        () => store.getSessionKey(address || store.walletAddress, store.ccc),
+        [address, store]
+    );
+    const sessionHistory = sessionKey ? store.sessionHistory[sessionKey] : null;
 
     const handleSaveProfile = () => {
         if (ccc.length !== 3) {
@@ -68,6 +77,24 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         toast.success("Wallet disconnected");
         onClose();
     };
+
+    const handleClearMyHistory = () => {
+        if (!sessionKey) return;
+        store.clearSessionHistory(sessionKey);
+        toast.success("Cleared persisted frontend history for this wallet + CCC");
+    };
+
+    const handleBootstrapInfra = async () => {
+        try {
+            const result = await bootstrapInfra.mutateAsync();
+            if (result.ok) toast.success("Gateway infra bootstrap refreshed");
+            else toast.error("Infra bootstrap failed");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Infra bootstrap failed");
+        }
+    };
+
+    const infra = infraResponse?.data;
 
     return (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-end">
@@ -193,12 +220,81 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         </CardContent>
                     </Card>
 
+                    {/* ── Infrastructure Section ── */}
+                    <Card className="bg-slate-900/50 border-slate-800/50">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm uppercase tracking-wider text-slate-400">Infrastructure</CardTitle>
+                            <CardDescription>Anvil microservice + ADI runtime state</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <div className="text-xs text-slate-400 space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Server className="w-3 h-3" />
+                                        Anvil service
+                                    </span>
+                                    <Badge variant={infra?.anvil?.online ? "emerald" : "secondary"}>
+                                        {infra?.anvil?.online ? "online" : "offline"}
+                                    </Badge>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span>ADI client</span>
+                                    <Badge variant={infra?.adi?.configured ? "emerald" : "secondary"}>
+                                        {infra?.adi?.configured ? "configured" : "not configured"}
+                                    </Badge>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span>Hydrated contracts</span>
+                                    <span className="font-mono text-slate-300">{infra?.adi?.hydratedContracts ?? 0}/11</span>
+                                </div>
+                                {infra?.adi?.rpcUrl && (
+                                    <p className="text-[11px] text-slate-500 break-all">RPC: {infra.adi.rpcUrl}</p>
+                                )}
+                            </div>
+                            <Button
+                                onClick={handleBootstrapInfra}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                disabled={bootstrapInfra.isPending || infraLoading}
+                            >
+                                <RefreshCw className={`w-3 h-3 mr-2 ${bootstrapInfra.isPending ? "animate-spin" : ""}`} />
+                                Re-bootstrap Gateway Infra
+                            </Button>
+                        </CardContent>
+                    </Card>
+
                     {/* ── Session Section ── */}
                     <Card className="bg-slate-900/50 border-red-900/30">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm uppercase tracking-wider text-red-400">Danger Zone</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
+                            <div className="rounded-md border border-slate-800/60 bg-slate-900/30 p-3 text-xs text-slate-400">
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Database className="w-3 h-3" />
+                                        Frontend persisted history
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span>Chat messages</span>
+                                    <span className="font-mono text-slate-300">{sessionHistory?.chat.length ?? 0}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span>Onchain events</span>
+                                    <span className="font-mono text-slate-300">{sessionHistory?.events.length ?? 0}</span>
+                                </div>
+                            </div>
+                            <Button
+                                onClick={handleClearMyHistory}
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-slate-700/60 text-slate-300 hover:bg-slate-800/40"
+                                disabled={!sessionKey}
+                            >
+                                <Trash2 className="w-3 h-3 mr-2" /> Clear My Persisted History
+                            </Button>
                             <Button onClick={handleReset} variant="outline" size="sm" className="w-full border-amber-700/50 text-amber-400 hover:bg-amber-950/30">
                                 <Trash2 className="w-3 h-3 mr-2" /> Reset Onboarding
                             </Button>

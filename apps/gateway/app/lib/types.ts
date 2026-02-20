@@ -12,6 +12,7 @@ export const ConnectSchema = z.object({
     contributor: z.string().optional(),
     contributorRole: z.string().optional(),
     tier: z.enum(["founding_og", "contributor", "tool_agent"]).default("contributor"),
+    homeInstance: z.string().optional(),
     hederaAccountId: z.string().optional(),
     baseAddress: z.string().optional(),
     username: z.string().optional(),

@@ -10,7 +10,10 @@ export function CCCIdFeed() {
         const load = async () => {
             const res = await getEvents(20);
             if (res.ok) {
-                const cccEvents = (res.data?.events || []).filter(
+                const events = Array.isArray(res.data)
+                    ? res.data
+                    : (res.data?.events || []);
+                const cccEvents = events.filter(
                     (e: any) => e.type === "CCC-ID"
                 );
                 setEvents(cccEvents);

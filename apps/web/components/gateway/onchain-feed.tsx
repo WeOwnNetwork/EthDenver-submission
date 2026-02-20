@@ -1,13 +1,16 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEvents, type GatewayEvent } from "@/lib/gateway-client";
+import { useAppStore } from "@/lib/store";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, UserPlus, Shield, FileText, Radio, ExternalLink, Hash, Inbox } from "lucide-react";
+import { useAccount } from "wagmi";
 
 const EVENT_TYPE_MAP: Record<string, { icon: typeof Activity; badge: "emerald" | "cyan" | "violet" | "amber" | "secondary"; label: string }> = {
     CONNECT: { icon: UserPlus, badge: "emerald", label: "Register" },
@@ -34,8 +37,34 @@ function timeAgo(dateStr: string): string {
 }
 
 export function OnchainFeed() {
-    const { data: response, isLoading } = useEvents(30);
-    const events: GatewayEvent[] = response?.data?.events ?? [];
+    const { ccc, walletAddress, getSessionKey, setEventsHistory, sessionHistory } = useAppStore();
+    const { address } = useAccount();
+
+    const sessionKey = useMemo(
+        () => getSessionKey(address || walletAddress, ccc),
+        [address, walletAddress, ccc, getSessionKey]
+    );
+
+    const agentFilter = ccc ? `AI:@${ccc}` : undefined;
+    const { data: response, isLoading } = useEvents(30, agentFilter);
+
+    const payload = response?.data;
+    const apiEvents: GatewayEvent[] = Array.isArray(payload)
+        ? payload
+        : payload?.events ?? [];
+
+    const persistedEvents = sessionKey
+        ? (sessionHistory[sessionKey]?.events || [])
+        : [];
+
+    const events: GatewayEvent[] = apiEvents.length
+        ? apiEvents
+        : persistedEvents;
+
+    useEffect(() => {
+        if (!sessionKey || apiEvents.length === 0) return;
+        setEventsHistory(sessionKey, apiEvents);
+    }, [sessionKey, apiEvents, setEventsHistory]);
 
     return (
         <Card className="glass-card border-slate-800/50">
@@ -43,7 +72,7 @@ export function OnchainFeed() {
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
                         <Activity className="w-5 h-5 text-cyan-400" />
-                        On-Chain Activity
+                        My On-Chain Activity
                     </CardTitle>
                     <div className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />

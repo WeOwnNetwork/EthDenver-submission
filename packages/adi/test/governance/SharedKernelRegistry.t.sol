@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
+import "../utils/DeployedContracts.t.sol";
 import "../../src/governance/SharedKernelRegistry.sol";
 
-contract SharedKernelRegistryTest is Test {
-    SharedKernelRegistry public kernel;
-    address public governance = address(0x1);
-
-    function setUp() public {
-        kernel = new SharedKernelRegistry(governance);
-    }
+contract SharedKernelRegistryTest is DeployedContracts {
 
     function test_BootstrappedRules() public view {
         assertEq(kernel.totalRules(), 13);
@@ -74,3 +68,4 @@ contract SharedKernelRegistryTest is Test {
         assertEq(kernel.currentVersion(), "v3.2.0.0");
     }
 }
+

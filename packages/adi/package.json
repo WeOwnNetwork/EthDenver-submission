@@ -4,12 +4,34 @@
     "main": "./src/index.ts",
     "types": "./src/index.ts",
     "scripts": {
+        "build": "forge build",
+        "deploy:testnet": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/Deploy.s.sol:Deploy --rpc-url adl_testnet --broadcast --verify --with-gas-price $((GP * 12 / 10))'",
+        "deploy:testnet:governance": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployGovernance.s.sol:DeployGovernance --rpc-url adl_testnet --broadcast --with-gas-price $((GP * 12 / 10))'",
+        "deploy:testnet:core": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployCore.s.sol:DeployCore --rpc-url adl_testnet --broadcast --with-gas-price $((GP * 12 / 10))'",
+        "deploy:testnet:attestation": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployAttestation.s.sol:DeployAttestation --rpc-url adl_testnet --broadcast --with-gas-price $((GP * 12 / 10))'",
+        "deploy:testnet:unit": "dotenv -e .env -- bash -c 'if [ -z \"$ADI_DEPLOY_SIG\" ]; then echo \"Set ADI_DEPLOY_SIG, e.g. deploySeasonRegistry()\"; exit 1; fi; GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployUnit.s.sol:DeployUnit --rpc-url adl_testnet --broadcast --sig \"$ADI_DEPLOY_SIG\" --with-gas-price $((GP * 12 / 10))'",
+        "deploy:testnet:unit:tight": "dotenv -e .env -- bash -c 'if [ -z \"$ADI_DEPLOY_SIG\" ]; then echo \"Set ADI_DEPLOY_SIG, e.g. deploySeasonRegistry()\"; exit 1; fi; GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployUnit.s.sol:DeployUnit --rpc-url adl_testnet --broadcast --sig \"$ADI_DEPLOY_SIG\" --with-gas-price $GP'",
+        "deploy:fork": "dotenv -e .env -- bash -c 'export DEPLOYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80; forge script script/Deploy.s.sol:Deploy --fork-url http://127.0.0.1:8545 --broadcast --with-gas-price $(cast gas-price --rpc-url http://127.0.0.1:8545)'",
+        "deploy:fork:governance": "dotenv -e .env -- bash -c 'export DEPLOYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80; forge script script/DeployGovernance.s.sol:DeployGovernance --fork-url http://127.0.0.1:8545 --broadcast --with-gas-price $(cast gas-price --rpc-url http://127.0.0.1:8545)'",
+        "deploy:fork:core": "dotenv -e .env -- bash -c 'export DEPLOYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80; forge script script/DeployCore.s.sol:DeployCore --fork-url http://127.0.0.1:8545 --broadcast --with-gas-price $(cast gas-price --rpc-url http://127.0.0.1:8545)'",
+        "deploy:fork:attestation": "dotenv -e .env -- bash -c 'export DEPLOYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80; forge script script/DeployAttestation.s.sol:DeployAttestation --fork-url http://127.0.0.1:8545 --broadcast --with-gas-price $(cast gas-price --rpc-url http://127.0.0.1:8545)'",
+        "deploy:fork:unit": "dotenv -e .env -- bash -c 'if [ -z \"$ADI_DEPLOY_SIG\" ]; then echo \"Set ADI_DEPLOY_SIG, e.g. deploySeasonRegistry()\"; exit 1; fi; export DEPLOYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80; forge script script/DeployUnit.s.sol:DeployUnit --fork-url http://127.0.0.1:8545 --broadcast --sig \"$ADI_DEPLOY_SIG\" --with-gas-price $(cast gas-price --rpc-url http://127.0.0.1:8545)'",
+        "estimate:testnet:governance": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployGovernance.s.sol:DeployGovernance --rpc-url adl_testnet --with-gas-price $((GP * 12 / 10))'",
+        "estimate:testnet:core": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployCore.s.sol:DeployCore --rpc-url adl_testnet --with-gas-price $((GP * 12 / 10))'",
+        "estimate:testnet:attestation": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployAttestation.s.sol:DeployAttestation --rpc-url adl_testnet --with-gas-price $((GP * 12 / 10))'",
+        "estimate:testnet:unit": "dotenv -e .env -- bash -c 'if [ -z \"$ADI_DEPLOY_SIG\" ]; then echo \"Set ADI_DEPLOY_SIG, e.g. deploySeasonRegistry()\"; exit 1; fi; GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployUnit.s.sol:DeployUnit --rpc-url adl_testnet --sig \"$ADI_DEPLOY_SIG\" --with-gas-price $((GP * 12 / 10))'",
+        "estimate:testnet:unit:tight": "dotenv -e .env -- bash -c 'if [ -z \"$ADI_DEPLOY_SIG\" ]; then echo \"Set ADI_DEPLOY_SIG, e.g. deploySeasonRegistry()\"; exit 1; fi; GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployUnit.s.sol:DeployUnit --rpc-url adl_testnet --sig \"$ADI_DEPLOY_SIG\" --with-gas-price $GP'",
+        "test:testnet": "dotenv -e .env -- forge test --fork-url adl_testnet",
         "lint": "eslint .",
         "check-types": "tsc --noEmit"
+    },
+    "dependencies": {
+        "viem": "^2.46.2"
     },
     "devDependencies": {
         "@repo/typescript-config": "workspace:*",
         "@types/node": "^20.10.0",
+        "dotenv-cli": "^7.4.2",
         "eslint": "^9.15.0",
         "typescript": "5.9.2"
     }

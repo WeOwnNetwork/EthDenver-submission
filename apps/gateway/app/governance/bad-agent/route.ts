@@ -4,6 +4,7 @@ import { BadAgentSchema, type GatewayResponse } from "../../lib/types";
 import crypto from "crypto";
 
 export const POST = async (request: Request): Promise<Response> => {
+    const start = Date.now();
     try {
         const body = await request.json();
         const parsed = BadAgentSchema.parse(body);
@@ -17,12 +18,23 @@ export const POST = async (request: Request): Promise<Response> => {
             });
         });
 
-        gateway.eventLog.push({
-            id: crypto.randomUUID(),
+        const eventId = crypto.randomUUID();
+        await gateway.recordGatewayEvent({
+            id: eventId,
             type: "BAD_AGENT",
             agent: parsed.reportedBy,
-            timestamp: new Date().toISOString(),
             summary: `🚨 #BadAgent: ${parsed.targetCcc} — ${parsed.reason}`,
+            payload: {
+                targetCcc: parsed.targetCcc,
+                severity: parsed.severity,
+                reason: parsed.reason,
+            },
+        });
+
+        await gateway.logMetric({
+            agentId: parsed.reportedBy,
+            latencyMs: Date.now() - start,
+            metadata: { type: "BAD_AGENT", eventId },
         });
 
         return NextResponse.json<GatewayResponse>({

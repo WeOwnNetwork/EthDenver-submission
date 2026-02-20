@@ -5,6 +5,7 @@ import { glog } from "../lib/logger";
 import crypto from "crypto";
 
 export const POST = async (request: Request): Promise<Response> => {
+    const start = Date.now();
     try {
         const body = await request.json();
         const parsed = CCCIdRequestSchema.parse(body);
@@ -16,6 +17,15 @@ export const POST = async (request: Request): Promise<Response> => {
         });
 
         if (!validation.allowed) {
+            // Log violation to TimescaleDB
+            await gateway.logEvent({
+                eventId: crypto.randomUUID(),
+                agentId: `AI:@${parsed.ccc}`,
+                eventType: "CCC-ID_DENIED",
+                payload: { violations: validation.violations, workspace: parsed.workspace },
+                status: "denied"
+            });
+
             return NextResponse.json<GatewayResponse>(
                 {
                     ok: false,
@@ -68,12 +78,19 @@ export const POST = async (request: Request): Promise<Response> => {
             });
         });
 
-        gateway.eventLog.push({
-            id: crypto.randomUUID(),
+        const eventId = crypto.randomUUID();
+        await gateway.recordGatewayEvent({
+            id: eventId,
             type: "CCC-ID",
             agent: `AI:@${parsed.ccc}`,
-            timestamp: new Date().toISOString(),
             summary: `${cccId.id} (+${reward} $CCC)`,
+            payload: { ccc_id: cccId.id, reward },
+        });
+
+        await gateway.logMetric({
+            agentId: `AI:@${parsed.ccc}`,
+            latencyMs: Date.now() - start,
+            metadata: { type: "CCC-ID" }
         });
 
         glog.cccId(cccId.id, parsed.ccc, reward);

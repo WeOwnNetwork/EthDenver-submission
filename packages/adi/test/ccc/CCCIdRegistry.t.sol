@@ -1,16 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "forge-std/Test.sol";
-import "../../src/ccc/CCCIdRegistry.sol";
+import "../utils/DeployedContracts.t.sol";
 
-contract CCCIdRegistryTest is Test {
-    CCCIdRegistry public cccIds;
-    address public gateway = address(0x1);
-
-    function setUp() public {
-        cccIds = new CCCIdRegistry(gateway);
-    }
+contract CCCIdRegistryTest is DeployedContracts {
 
     function test_MintCCCId() public {
         vm.prank(gateway);

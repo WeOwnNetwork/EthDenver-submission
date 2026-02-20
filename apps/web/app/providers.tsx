@@ -13,8 +13,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <WagmiProvider config={wagmiConfig}>
             <QueryClientProvider client={queryClient}>
                 {children}
-                <Toaster richColors position="bottom-right" />
             </QueryClientProvider>
+            <Toaster richColors position="bottom-right" />
         </WagmiProvider>
     );
 }

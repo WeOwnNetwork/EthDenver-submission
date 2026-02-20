@@ -8,15 +8,19 @@ import "../src/core/AgentValidationRegistry.sol";
 import "../src/governance/SharedKernelRegistry.sol";
 import "../src/governance/SeasonRegistry.sol";
 import "../src/governance/ISCRegistry.sol";
+import "../src/governance/BadAgentRegistry.sol";
 import "../src/governance/CCCGovernanceToken.sol";
 import "../src/attestation/VSARegistry.sol";
 import "../src/attestation/DocumentRegistry.sol";
 import "../src/ccc/CCCIdRegistry.sol";
 
-/// @title Deploy — Full ERC-8004 × #FedArch Stack (10 contracts)
+/// @title Deploy — Full ERC-8004 × #FedArch Stack (11 contracts)
 contract Deploy is Script {
     function run() external {
-        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerKey = vm.envOr(
+            "DEPLOYER_PRIVATE_KEY",
+            vm.envUint("PRIVATE_KEY")
+        );
         address deployer = vm.addr(deployerKey);
         console.log("Deployer:", deployer);
         console.log("Chain:", block.chainid);
@@ -28,6 +32,7 @@ contract Deploy is Script {
         SharedKernelRegistry kernel = new SharedKernelRegistry(deployer);
         SeasonRegistry seasons = new SeasonRegistry(deployer);
         ISCRegistry isc = new ISCRegistry(deployer);
+        BadAgentRegistry badAgent = new BadAgentRegistry(deployer);
 
         // Core (ERC-8004)
         AgentIdentityRegistry identity = new AgentIdentityRegistry(
@@ -61,6 +66,7 @@ contract Deploy is Script {
         console.log("SharedKernelRegistry:   ", address(kernel));
         console.log("SeasonRegistry:         ", address(seasons));
         console.log("ISCRegistry:            ", address(isc));
+        console.log("BadAgentRegistry:       ", address(badAgent));
         console.log("AgentIdentityRegistry:  ", address(identity));
         console.log("AgentReputationRegistry:", address(reputation));
         console.log("AgentValidationRegistry:", address(validation));
@@ -68,7 +74,7 @@ contract Deploy is Script {
         console.log("DocumentRegistry:       ", address(docs));
         console.log("CCCIdRegistry:          ", address(cccIds));
         console.log("========================================");
-        console.log("Total contracts:         10");
+        console.log("Total contracts:         11");
         console.log("Season:                  3");
         console.log("SharedKernel:            v3.1.2.1");
         console.log("========================================");
