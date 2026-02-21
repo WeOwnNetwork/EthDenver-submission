@@ -4,7 +4,7 @@
     "main": "./src/index.ts",
     "types": "./src/index.ts",
     "scripts": {
-        "build": "forge build",
+        "build": "command -v forge > /dev/null 2>&1 && forge build || echo 'Skipping forge build (forge not found)'",
         "deploy:testnet": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/Deploy.s.sol:Deploy --rpc-url adl_testnet --broadcast --verify --with-gas-price $((GP * 12 / 10))'",
         "deploy:testnet:governance": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployGovernance.s.sol:DeployGovernance --rpc-url adl_testnet --broadcast --with-gas-price $((GP * 12 / 10))'",
         "deploy:testnet:core": "dotenv -e .env -- bash -c 'GP=$(cast gas-price --rpc-url adl_testnet); forge script script/DeployCore.s.sol:DeployCore --rpc-url adl_testnet --broadcast --with-gas-price $((GP * 12 / 10))'",
