@@ -2,8 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAppStore, type PersistedChatMessage } from "@/lib/store";
-import { useGenerateCCCId, useCallLLM } from "@/lib/gateway-client";
-import { type ChatMessage as LLMMessage } from "@repo/ai-providers/chat";
+import { useSendVolley } from "@/lib/gateway-client";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Send, Hash, Zap, MessageSquare } from "lucide-react";
@@ -45,8 +44,7 @@ export function ChatPanel() {
     const [input, setInput] = useState("");
     const [isThinking, setIsThinking] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const generateCCCId = useGenerateCCCId();
-    const llm = useCallLLM();
+    const sendVolley = useSendVolley();
 
     const defaultWelcome = useMemo<Message>(
         () => ({
@@ -116,54 +114,41 @@ export function ChatPanel() {
         setIsThinking(true);
 
         try {
-            // Generate CCC-ID for this interaction
-            const cccResult = await generateCCCId.mutateAsync({
-                ccc: ccc!,
-                workspace: "CCC",
+            // Send as a #ContextVolley — generates CCC-ID + routes to AnythingLLM + attests HCS
+            const gwResult = await sendVolley.mutateAsync({
+                from: `AI:@${ccc}`,
+                to: "GTM",
+                volleyType: "SEEK",
+                content: prompt,
+                attest: true,
             });
 
-            if (cccResult.ok && cccResult.data) {
+            if (gwResult.ok && gwResult.data) {
+                const { cccId, response } = gwResult.data;
+
                 const cccIdMsg: Message = {
                     id: crypto.randomUUID(),
                     role: "system",
-                    content: `🆔 **${cccResult.data.id}** generated (+${cccResult.data.reward} $CCC)`,
-                    cccId: cccResult.data.id,
+                    content: `🆔 **${cccId}** generated (+10 $CCC)`,
+                    cccId,
                     timestamp: new Date(),
                 };
                 setMessages((prev) => [...prev, cccIdMsg]);
+
+                if (response) {
+                    const assistantMsg: Message = {
+                        id: crypto.randomUUID(),
+                        role: "assistant",
+                        content: response,
+                        agentId: `AI:@${ccc}`,
+                        cccId,
+                        timestamp: new Date(),
+                    };
+                    setMessages((prev) => [...prev, assistantMsg]);
+                }
+            } else {
+                throw new Error(gwResult.error || "Volley failed");
             }
-
-            // Call LLM Proxy
-            const llmMessages: LLMMessage[] = [
-                {
-                    role: "system",
-                    content: `You are AI:@${ccc}, a #FedArch agent. Be concise. Use tables when helpful. #LessIsMore.`,
-                },
-                { role: "user", content: prompt },
-            ];
-
-            const gwResult = await llm.mutateAsync({
-                providerId: llmProvider || "ollama",
-                model: llmModel || "llama3.2:3b",
-                config: llmConfig || {},
-                messages: llmMessages,
-            });
-
-            if (!gwResult.ok || !gwResult.data) {
-                throw new Error(gwResult.error || "Failed to get LLM response");
-            }
-
-            const result = gwResult.data;
-
-            const assistantMsg: Message = {
-                id: crypto.randomUUID(),
-                role: "assistant",
-                content: result.content,
-                agentId: `AI:@${ccc}`,
-                cccId: cccResult.ok ? cccResult.data?.id : undefined,
-                timestamp: new Date(),
-            };
-            setMessages((prev) => [...prev, assistantMsg]);
         } catch (err) {
             toast.error(`Error: ${err}`);
             const errorMsg: Message = {

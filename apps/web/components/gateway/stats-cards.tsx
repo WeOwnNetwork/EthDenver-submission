@@ -12,7 +12,7 @@ export function StatsCards() {
     const cards = [
         {
             label: "Agents Registered",
-            value: stats?.onchain?.totalAgents ?? stats?.registeredAgents ?? 0,
+            value: stats?.onchain?.totalAgents || stats?.registeredAgents || 0,
             icon: Users,
             color: "text-emerald-400",
             bgColor: "bg-emerald-500/10",
@@ -21,7 +21,7 @@ export function StatsCards() {
         },
         {
             label: "CCC-IDs Generated",
-            value: stats?.onchain?.totalCCCIds ?? stats?.totalCCCIds ?? 0,
+            value: stats?.onchain?.totalCCCIds || stats?.totalCCCIds || 0,
             icon: Hash,
             color: "text-cyan-400",
             bgColor: "bg-cyan-500/10",
@@ -39,7 +39,7 @@ export function StatsCards() {
         },
         {
             label: "ISC Certified",
-            value: stats?.onchain?.totalVSAs ?? stats?.hcsMessages ?? 0,
+            value: stats?.onchain?.totalVSAs || stats?.hcsMessages || 0,
             icon: Shield,
             color: "text-amber-400",
             bgColor: "bg-amber-500/10",
