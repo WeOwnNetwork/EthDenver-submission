@@ -10,6 +10,9 @@ import { bootstrapAnvilMicroservice } from "./anvil-microservice";
 import { env } from "../../env";
 import crypto from "crypto";
 
+// Allow self-signed TLS cert chains (TimescaleDB Cloud)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 // ═══════════════════════════════════════════════════════
 // CCC GATEWAY SINGLETON — next-forge API
 //
@@ -264,18 +267,28 @@ class CCCGatewaySingleton {
             };
         }
 
-        const [eventsCountRes, metricsCountRes, latestEventRes] = await Promise.all([
-            this.timescale.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM volley_events`),
-            this.timescale.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM agent_metrics`),
-            this.timescale.query<{ latest: string | null }>(`SELECT MAX(time)::text AS latest FROM volley_events`),
-        ]);
+        try {
+            const [eventsCountRes, metricsCountRes, latestEventRes] = await Promise.all([
+                this.timescale.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM volley_events`),
+                this.timescale.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM agent_metrics`),
+                this.timescale.query<{ latest: string | null }>(`SELECT MAX(time)::text AS latest FROM volley_events`),
+            ]);
 
-        return {
-            enabled: true,
-            eventsCount: Number(eventsCountRes.rows[0]?.total || 0),
-            metricsCount: Number(metricsCountRes.rows[0]?.total || 0),
-            latestEventAt: latestEventRes.rows[0]?.latest || null,
-        };
+            return {
+                enabled: true,
+                eventsCount: Number(eventsCountRes.rows[0]?.total || 0),
+                metricsCount: Number(metricsCountRes.rows[0]?.total || 0),
+                latestEventAt: latestEventRes.rows[0]?.latest || null,
+            };
+        } catch (err) {
+            return {
+                enabled: true,
+                eventsCount: 0,
+                metricsCount: 0,
+                latestEventAt: null,
+                error: String(err),
+            };
+        }
     }
 
     public async logMetric(data: {

@@ -134,7 +134,7 @@ export async function sendToAnythingLLM(
         message: `#ContextVolley from AI:@${fromCcc}: ${message}`,
         mode: "chat",
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(45_000),
     });
 
     if (!res.ok) return null;

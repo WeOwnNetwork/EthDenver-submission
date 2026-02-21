@@ -27,6 +27,9 @@ out/
 build
 dist
 
+# Foundry ABI artifacts — committed so Vercel build works
+!packages/adi/out/
+
 
 # Debug
 npm-debug.log*
