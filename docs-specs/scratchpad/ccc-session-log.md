@@ -93,6 +93,10 @@
 | RMN_2026-W08_162 | R | Root cause: volley/route.ts called cccGen.generate("AI:@RMN") but generator requires /^[A-Z]{3}$/ — threw "Invalid CCC: AI:@RMN". Error object became [object Object] in UI. totalVolleys++ was before the throw so counter incremented. Fix: strip "AI:@" prefix → fromCcc="RMN"; move totalVolleys++ after generate; fix error message extraction in chat-panel. Pushed 42d6df6 | `42d6df6` |
 | RMN_2026-W08_163 | P | Server rebuild commands for both gateway and web | — |
 | RMN_2026-W08_164 | R | cd /opt/ccc && git pull origin roman/infra-deploy && pnpm --filter gateway build && pm2 reload ccc-gateway && pnpm --filter web build && pm2 reload ccc-web | — |
+| RMN_2026-W08_165 | P | After rebuild: 0 agents (should be 1); stats wrong (3 volleys=chat, 3 ISC=wrong); no instance selector; agent can't self-send volleys; no on-chain visibility; want per-instance CCC-ID tracking | — |
+| RMN_2026-W08_166 | R | Root causes: (1) agentRegistry in-memory resets on restart; (2) “Active Volleys” counted chat messages not real cross-instance volleys; (3) “ISC Certified” counted hcsMessages not live instances; (4) chat hardcoded to GTM/INT-E01 with no UI instance selector. Fixes: persistent TimescaleDB counts for CONNECT+VOLLEY events; liveInstances from getConfiguredInstances() in stats/route; rename “Active Volleys”→“Context Volleys”, “ISC Certified”→“Live Instances”; add instanceId to VolleySchema + volley route; add E01/OG8/P01 selector buttons to chat panel; show instance+HCS in CCC-ID message. Pushed 438c0ed | `438c0ed` |
+| RMN_2026-W08_167 | P | Server rebuild commands for gateway + web after 438c0ed | — |
+| RMN_2026-W08_168 | R | cd /opt/ccc && git pull origin roman/infra-deploy && pnpm --filter gateway build && pm2 reload ccc-gateway && pnpm --filter web build && pm2 reload ccc-web | — |
 
 ---
 
@@ -130,14 +134,14 @@
 - OnchainIndex: lastIndexedBlock=41539 ✅
 - API smoke tests: /connect ✅ /ccc-id ✅ /stats ✅ (registeredAgents:1, totalCCCIds:1, hcsMessages:2)
 - CORS fix applied ✅ (gateway rebuilt, Launch Gateway works)
-- Web + gateway rebuild pending (42d6df6): volley AI:@ prefix fix, totalVolleys++ placement, error display fix
+- Web + gateway rebuild pending (438c0ed): instance selector, stats persistence, liveInstances, instanceId routing
 
 ---
 
 ## Running Totals
 
-- **Prompts issued:** ~76 (097–164)
-- **Responses delivered:** ~76
-- **Commits authored:** 15
+- **Prompts issued:** ~80 (097–168)
+- **Responses delivered:** ~80
+- **Commits authored:** 16
 - **Files modified:** 12+
 - **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅ (local only)
