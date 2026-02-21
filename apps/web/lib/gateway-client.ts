@@ -353,8 +353,13 @@ export function useTokenRegistry() {
 export function useTokenAction() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ action, ...payload }: { action: string;[key: string]: unknown }) =>
-            tokenAction(action, payload),
+        mutationFn: async ({ action, ...payload }: { action: string;[key: string]: unknown }) => {
+            const response = await tokenAction(action, payload);
+            if (!response.ok) {
+                throw new Error(response.error || `Token action failed: ${action}`);
+            }
+            return response;
+        },
         onSuccess: async () => {
             await qc.invalidateQueries({ queryKey: ["token-registry"] });
             await qc.refetchQueries({ queryKey: ["token-registry"] });

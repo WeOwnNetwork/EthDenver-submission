@@ -38,6 +38,7 @@ interface UserConfig {
     ccc: string | null;
     contributor: string | null;
     walletAddress: string | null;
+    executionNetwork: "adi" | "base-sepolia";
     llmProvider: string | null;
     llmModel: string | null;
     llmConfig: Record<string, string>;
@@ -51,6 +52,7 @@ interface AppStore extends UserConfig {
     setCCC: (ccc: string) => void;
     setContributor: (name: string) => void;
     setWallet: (address: string) => void;
+    setExecutionNetwork: (network: "adi" | "base-sepolia") => void;
     setLLM: (provider: string, model: string, config: Record<string, string>) => void;
     completeOnboarding: () => void;
     startSeason: () => void;
@@ -76,6 +78,7 @@ export const useAppStore = create<AppStore>()(
             ccc: null,
             contributor: null,
             walletAddress: null,
+            executionNetwork: "adi",
             llmProvider: null,
             llmModel: null,
             llmConfig: {},
@@ -87,6 +90,7 @@ export const useAppStore = create<AppStore>()(
             setCCC: (ccc) => set({ ccc }),
             setContributor: (contributor) => set({ contributor }),
             setWallet: (walletAddress) => set({ walletAddress }),
+            setExecutionNetwork: (executionNetwork) => set({ executionNetwork }),
             setLLM: (llmProvider, llmModel, llmConfig) =>
                 set({ llmProvider, llmModel, llmConfig }),
             completeOnboarding: () => set({ onboarded: true }),
@@ -183,6 +187,7 @@ export const useAppStore = create<AppStore>()(
                     ccc: null,
                     contributor: null,
                     walletAddress: null,
+                    executionNetwork: "adi",
                     llmProvider: null,
                     llmModel: null,
                     llmConfig: {},

@@ -272,6 +272,24 @@ export class HCSAttestor {
     }
 
     /**
+     * Ensure a topic exists for the given type.
+     * If not configured, it is created and cached.
+     */
+    async ensureTopic(topicType: HCSTopicType): Promise<string> {
+        return this.ensureTopicId(topicType);
+    }
+
+    /**
+     * Ensure multiple topics exist.
+     */
+    async ensureTopics(topicTypes: HCSTopicType[]): Promise<Partial<TopicRegistry>> {
+        for (const topicType of topicTypes) {
+            await this.ensureTopicId(topicType);
+        }
+        return this.topics;
+    }
+
+    /**
      * Get topic info from Hedera
      */
     async getTopicInfo(topicType: HCSTopicType): Promise<{
@@ -279,7 +297,7 @@ export class HCSAttestor {
         memo: string;
         sequenceNumber: number;
     }> {
-        const topicId = this.getTopicId(topicType);
+        const topicId = await this.ensureTopicId(topicType);
         const client = createClient();
 
         const info = await new TopicInfoQuery()
@@ -448,7 +466,7 @@ export class HCSAttestor {
         topicType: HCSTopicType,
         message: HCSBaseMessage
     ): Promise<HCSSubmitResult> {
-        const topicId = this.getTopicId(topicType);
+        const topicId = await this.ensureTopicId(topicType);
         const client = createClient();
         const operatorKey = getOperatorKey();
 
@@ -517,6 +535,35 @@ export class HCSAttestor {
     // ─────────────────────────────────────────────────
     // UTILITIES
     // ─────────────────────────────────────────────────
+
+    private envKeyForTopic(topicType: HCSTopicType): string {
+        const mapping: Record<HCSTopicType, string> = {
+            [HCSTopicType.CCC_ID]: "HCS_TOPIC_CCC_ID",
+            [HCSTopicType.CONTEXT_VOLLEY]: "HCS_TOPIC_CONTEXT_VOLLEY",
+            [HCSTopicType.GOVERNANCE]: "HCS_TOPIC_GOVERNANCE",
+            [HCSTopicType.VSA]: "HCS_TOPIC_VSA",
+            [HCSTopicType.AGENT_REGISTRY]: "HCS_TOPIC_AGENT_REGISTRY",
+            [HCSTopicType.SEASON]: "HCS_TOPIC_SEASON",
+        };
+
+        return mapping[topicType];
+    }
+
+    private async ensureTopicId(topicType: HCSTopicType): Promise<string> {
+        const existing = this.topics[topicType];
+        if (existing) return existing;
+
+        // Reload in case env was updated at runtime by another route/action.
+        this.loadTopicsFromEnv();
+        const afterReload = this.topics[topicType];
+        if (afterReload) return afterReload;
+
+        // Last fallback: auto-create missing topic to avoid failed attestations.
+        const created = await this.createTopic(topicType);
+        process.env[this.envKeyForTopic(topicType)] = created;
+        console.warn(`⚠️ HCS topic missing for ${topicType}; auto-created ${created}`);
+        return created;
+    }
 
     private getTopicId(topicType: HCSTopicType): string {
         const topicId = this.topics[topicType];

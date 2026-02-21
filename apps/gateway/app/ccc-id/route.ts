@@ -87,6 +87,16 @@ export const POST = async (request: Request): Promise<Response> => {
             payload: { ccc_id: cccId.id, reward },
         });
 
+        await gateway.logCCCIdEvent({
+            contributor: parsed.ccc,
+            cccId: cccId.id,
+            year: cccId.year,
+            week: cccId.week,
+            sequence: cccId.sequence,
+            reward,
+            instanceId: gateway.instance,
+        });
+
         await gateway.logMetric({
             agentId: `AI:@${parsed.ccc}`,
             latencyMs: Date.now() - start,

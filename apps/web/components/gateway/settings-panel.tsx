@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useAccount, useDisconnect } from "wagmi";
+import { useAccount, useChainId, useDisconnect, useSwitchChain } from "wagmi";
 import { useAppStore } from "@/lib/store";
 import { useBootstrapInfra, useInfraStatus } from "@/lib/gateway-client";
+import { adlTestnet, baseSepolia } from "@/lib/wagmi";
 import {
     LLM_PROVIDERS,
     type LLMProvider,
@@ -25,7 +26,9 @@ interface SettingsPanelProps {
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
     const store = useAppStore();
     const { address } = useAccount();
+    const chainId = useChainId();
     const { disconnect } = useDisconnect();
+    const { switchChainAsync, isPending: isSwitchingChain } = useSwitchChain();
     const { data: infraResponse, isLoading: infraLoading } = useInfraStatus();
     const bootstrapInfra = useBootstrapInfra();
 
@@ -39,6 +42,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     const currentModel = currentProvider?.models.find(m => m.id === store.llmModel);
     const [selectedModel, setSelectedModel] = useState<LLMModel | null>(currentModel || null);
     const [llmConfig, setLlmConfig] = useState<Record<string, string>>(store.llmConfig || {});
+    const [executionNetwork, setExecutionNetwork] = useState<"adi" | "base-sepolia">(store.executionNetwork || "adi");
 
     const sessionKey = useMemo(
         () => store.getSessionKey(address || store.walletAddress, store.ccc),
@@ -63,6 +67,26 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         }
         store.setLLM(selectedProvider.id, selectedModel.id, llmConfig);
         toast.success(`LLM updated to ${selectedProvider.name} / ${selectedModel.name}`);
+    };
+
+    const handleSaveNetwork = async () => {
+        const targetChainId = executionNetwork === "adi" ? adlTestnet.id : baseSepolia.id;
+        const label = executionNetwork === "adi" ? "ADI Testnet" : "Base Sepolia";
+
+        store.setExecutionNetwork(executionNetwork);
+
+        if (address && chainId !== targetChainId) {
+            try {
+                await switchChainAsync({ chainId: targetChainId });
+                toast.success(`Execution network set to ${label}`);
+                return;
+            } catch (error) {
+                toast.error(error instanceof Error ? error.message : `Saved network as ${label}, wallet switch failed`);
+                return;
+            }
+        }
+
+        toast.success(`Execution network set to ${label}`);
     };
 
     const handleReset = () => {
@@ -142,6 +166,44 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                             </div>
                             <Button onClick={handleSaveProfile} variant="outline" size="sm" className="w-full">
                                 <Save className="w-3 h-3 mr-2" /> Save Profile
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    {/* ── LLM Provider Section ── */}
+                    <Card className="bg-slate-900/50 border-slate-800/50">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm uppercase tracking-wider text-slate-400">Execution Network</CardTitle>
+                            <CardDescription>Switch between ADI and Base Sepolia</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => setExecutionNetwork("adi")}
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer text-xs ${executionNetwork === "adi"
+                                        ? "border-emerald-500/50 bg-emerald-950/20"
+                                        : "border-slate-700/50 hover:border-slate-600 bg-slate-800/30"
+                                        }`}
+                                >
+                                    <span className="font-medium text-white">ADI Testnet</span>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Chain ID: 99999</p>
+                                </button>
+                                <button
+                                    onClick={() => setExecutionNetwork("base-sepolia")}
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer text-xs ${executionNetwork === "base-sepolia"
+                                        ? "border-cyan-500/50 bg-cyan-950/20"
+                                        : "border-slate-700/50 hover:border-slate-600 bg-slate-800/30"
+                                        }`}
+                                >
+                                    <span className="font-medium text-white">Base Sepolia</span>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Chain ID: 84532</p>
+                                </button>
+                            </div>
+                            <div className="text-xs text-slate-500">
+                                Wallet chain: <span className="font-mono text-slate-300">{chainId || "—"}</span>
+                            </div>
+                            <Button onClick={handleSaveNetwork} variant="outline" size="sm" className="w-full" disabled={isSwitchingChain}>
+                                <Save className="w-3 h-3 mr-2" /> {isSwitchingChain ? "Switching…" : "Save Network"}
                             </Button>
                         </CardContent>
                     </Card>

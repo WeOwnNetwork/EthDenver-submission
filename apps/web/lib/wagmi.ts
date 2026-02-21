@@ -19,10 +19,24 @@ export const adlTestnet = defineChain({
     },
 });
 
+/** Base Sepolia */
+export const baseSepolia = defineChain({
+    id: 84532,
+    name: "Base Sepolia",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: {
+        default: { http: ["https://base-sepolia.drpc.org"] },
+    },
+    blockExplorers: {
+        default: { name: "Blockscout", url: "https://base-sepolia.blockscout.com" },
+    },
+});
+
 export const wagmiConfig = createConfig({
-    chains: [adlTestnet],
+    chains: [adlTestnet, baseSepolia],
     connectors: [injected()],
     transports: {
         [adlTestnet.id]: http(),
+        [baseSepolia.id]: http(),
     },
 });

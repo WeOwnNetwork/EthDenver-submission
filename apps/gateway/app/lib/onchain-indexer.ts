@@ -26,6 +26,7 @@ const DEFAULT_SYNC_INTERVAL_MS = 15_000;
 
 export class OnchainIndexer {
     private clients?: AdiClients;
+    private onIndexedEvents?: (events: IndexedOnchainEvent[]) => Promise<void>;
     private state: IndexState = {
         lastIndexedBlock: 0,
         lastSyncedAt: new Date(0).toISOString(),
@@ -35,8 +36,9 @@ export class OnchainIndexer {
     private readonly storagePath: string;
     private readonly contractAddresses: string[];
 
-    constructor(clients?: AdiClients) {
+    constructor(clients?: AdiClients, onIndexedEvents?: (events: IndexedOnchainEvent[]) => Promise<void>) {
         this.clients = clients;
+        this.onIndexedEvents = onIndexedEvents;
         this.storagePath = env.ADI_INDEX_STORAGE_PATH || path.join(process.cwd(), ".data", "adl-onchain-index.json");
         this.contractAddresses = this.collectAddresses();
     }
@@ -152,6 +154,10 @@ export class OnchainIndexer {
                 this.state.events = [...this.state.events, ...nextEvents]
                     .sort((a, b) => (a.blockNumber - b.blockNumber) || (a.logIndex - b.logIndex))
                     .slice(-MAX_EVENTS);
+
+                if (this.onIndexedEvents) {
+                    await this.onIndexedEvents(nextEvents);
+                }
             }
 
             this.state.lastIndexedBlock = latest;

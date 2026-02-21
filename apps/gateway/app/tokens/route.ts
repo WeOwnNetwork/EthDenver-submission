@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { gateway } from "../lib/gateway";
 import { HCSTopicType } from "@repo/hedera/hcs";
+import crypto from "crypto";
 
 // List token registry & bootstrap new tokens on Hedera testnet
 // GET /tokens  → return current token registry
@@ -57,9 +58,19 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+    let action = "unknown";
     try {
         const body = await request.json();
-        const action = body.action as string;
+        action = body.action as string;
+        const actor = "AI:@HEDERA";
+
+        const requiredString = (field: string): string => {
+            const value = body[field];
+            if (typeof value !== "string" || value.trim().length === 0) {
+                throw new Error(`Missing required field: ${field}`);
+            }
+            return value.trim();
+        };
 
         const hcsTopicMappings: Array<{ label: string; type: HCSTopicType; envKey: string }> = [
             { label: "CCC_ID", type: HCSTopicType.CCC_ID, envKey: "HCS_TOPIC_CCC_ID" },
@@ -74,6 +85,16 @@ export async function POST(request: Request) {
             // Dynamic import to avoid loading Hedera SDK on every request
             const { bootstrapTokenRegistry } = await import("@repo/hedera/tokens");
             const registry = await bootstrapTokenRegistry();
+
+            await gateway.recordGatewayEvent({
+                id: crypto.randomUUID(),
+                type: "HEDERA_BOOTSTRAP",
+                agent: actor,
+                summary: "Token registry bootstrapped",
+                payload: { action, registry },
+                status: "success",
+            });
+
             return NextResponse.json({ ok: true, data: { registry } });
         }
 
@@ -96,6 +117,15 @@ export async function POST(request: Request) {
                 process.env[mapping.envKey] = newTopicId;
             }
 
+            await gateway.recordGatewayEvent({
+                id: crypto.randomUUID(),
+                type: "HEDERA_HCS_BOOTSTRAP",
+                agent: actor,
+                summary: `HCS topics ensured (${Object.keys(topics).length})`,
+                payload: { action, topics, created },
+                status: "success",
+            });
+
             return NextResponse.json({ ok: true, data: { topics, created } });
         }
 
@@ -106,44 +136,115 @@ export async function POST(request: Request) {
                 locked_by: "AI:@SYSTEM",
             });
 
+            await gateway.recordGatewayEvent({
+                id: crypto.randomUUID(),
+                type: "HEDERA_HCS_ATTEST",
+                agent: actor,
+                summary: `HCS smoke attestation #${result.sequenceNumber}`,
+                payload: { action, result },
+                status: "success",
+            });
+
             return NextResponse.json({ ok: true, data: result });
         }
 
         if (action === "mint-ccc") {
             const { mintCCCReward } = await import("@repo/hedera/tokens");
+            const tokenId = requiredString("tokenId");
+            const cccId = requiredString("cccId");
+            const sequence = Number(body.sequence || 4);
+            if (!Number.isFinite(sequence) || sequence <= 0) {
+                throw new Error("Invalid sequence: must be a positive number");
+            }
+
             const result = await mintCCCReward(
-                body.tokenId,
-                body.cccId,
-                body.sequence || 4,
+                tokenId,
+                cccId,
+                sequence,
             );
+
+            await gateway.recordGatewayEvent({
+                id: crypto.randomUUID(),
+                type: "HEDERA_MINT_CCC",
+                agent: actor,
+                summary: `Minted CCC reward for ${body.cccId || "unknown"}`,
+                payload: { action, tokenId, cccId, sequence, result },
+                status: "success",
+            });
+
             return NextResponse.json({ ok: true, data: result });
         }
 
         if (action === "mint-agent-id") {
             const { mintAgentId } = await import("@repo/hedera/tokens");
-            const result = await mintAgentId(body.tokenId, body.metadata);
+            const tokenId = requiredString("tokenId");
+            const result = await mintAgentId(tokenId, body.metadata);
+
+            await gateway.recordGatewayEvent({
+                id: crypto.randomUUID(),
+                type: "HEDERA_MINT_AGENT_ID",
+                agent: actor,
+                summary: "Minted Agent ID NFT",
+                payload: { action, tokenId, result },
+                status: "success",
+            });
+
             return NextResponse.json({ ok: true, data: result });
         }
 
         if (action === "mint-ccc-id-nft") {
             const { mintCCCIdNFT } = await import("@repo/hedera/tokens");
-            const result = await mintCCCIdNFT(body.tokenId, body.metadata);
+            const tokenId = requiredString("tokenId");
+            const result = await mintCCCIdNFT(tokenId, body.metadata);
+
+            await gateway.recordGatewayEvent({
+                id: crypto.randomUUID(),
+                type: "HEDERA_MINT_CCCID_NFT",
+                agent: actor,
+                summary: "Minted CCC-ID NFT",
+                payload: { action, tokenId, result },
+                status: "success",
+            });
+
             return NextResponse.json({ ok: true, data: result });
         }
 
         if (action === "freeze-bad-agent") {
             const { freezeBadAgent } = await import("@repo/hedera/tokens");
+            const cccTokenId = requiredString("cccTokenId");
+            const agentAccountId = requiredString("agentAccountId");
             const txId = await freezeBadAgent(
-                body.cccTokenId,
-                body.agentAccountId,
+                cccTokenId,
+                agentAccountId,
                 body.reason,
             );
+
+            await gateway.recordGatewayEvent({
+                id: crypto.randomUUID(),
+                type: "HEDERA_FREEZE_AGENT",
+                agent: actor,
+                summary: `Freeze bad agent ${agentAccountId}`,
+                payload: { action, txId, cccTokenId, agentAccountId, reason: body.reason },
+                status: "success",
+            });
+
             return NextResponse.json({ ok: true, data: { transactionId: txId } });
         }
 
         if (action === "pause-token") {
             const { pauseForSeasonTransition } = await import("@repo/hedera/tokens");
-            const txId = await pauseForSeasonTransition(body.tokenId);
+            const tokenId = requiredString("tokenId");
+            const txId = await pauseForSeasonTransition(tokenId);
+
+            await gateway.recordGatewayEvent({
+                id: crypto.randomUUID(),
+                type: "HEDERA_PAUSE_TOKEN",
+                agent: actor,
+                summary: `Paused token ${tokenId}`,
+                payload: { action, txId, tokenId },
+                status: "success",
+            });
+
             return NextResponse.json({ ok: true, data: { transactionId: txId } });
         }
 
@@ -152,9 +253,21 @@ export async function POST(request: Request) {
             { status: 400 },
         );
     } catch (err: unknown) {
+        const message = String(err);
+        const status = /Missing required field|Invalid sequence/i.test(message) ? 400 : 500;
+
+        await gateway.recordGatewayEvent({
+            id: crypto.randomUUID(),
+            type: "HEDERA_ACTION_FAILED",
+            agent: "AI:@HEDERA",
+            summary: `Hedera action failed: ${action}`,
+            payload: { action, error: message },
+            status: "failed",
+        }).catch(() => undefined);
+
         return NextResponse.json(
-            { ok: false, error: String(err) },
-            { status: 500 },
+            { ok: false, error: message },
+            { status },
         );
     }
 }

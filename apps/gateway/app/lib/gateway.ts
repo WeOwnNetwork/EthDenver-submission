@@ -4,6 +4,7 @@ import { CCCIdGenerator } from "./ccc-id-generator";
 import { SharedKernel } from "./shared-kernel";
 import { AgentRegistry } from "./agent-registry";
 import { EventLog } from "./event-log";
+import { EventHub } from "./event-hub";
 import { getGatewayAdiClients } from "./adi-contracts";
 import { OnchainIndexer } from "./onchain-indexer";
 import { bootstrapAnvilMicroservice } from "./anvil-microservice";
@@ -24,6 +25,7 @@ class CCCGatewaySingleton {
     public kernel: SharedKernel;
     public agentRegistry: AgentRegistry;
     public eventLog: EventLog;
+    public eventHub: EventHub;
     public adi = getGatewayAdiClients();
     public onchainIndexer: OnchainIndexer;
 
@@ -54,9 +56,44 @@ class CCCGatewaySingleton {
         this.kernel = new SharedKernel();
         this.agentRegistry = new AgentRegistry();
         this.eventLog = new EventLog(2000);
-        this.onchainIndexer = new OnchainIndexer(this.adi);
+        this.eventHub = new EventHub();
+        this.eventHub.subscribeEvent<{
+            id: string;
+            type: string;
+            agent: string;
+            summary: string;
+            topicId?: string;
+            payload?: unknown;
+            status?: string;
+            timestamp?: string;
+        }>("gateway.event.persist", async (event) => {
+            await this.persistGatewayEventInternal(event);
+        });
+        this.onchainIndexer = new OnchainIndexer(this.adi, async (events) => {
+            for (const e of events) {
+                await this.recordGatewayEvent({
+                    id: e.id,
+                    type: "ADI_ONCHAIN",
+                    agent: e.contract,
+                    summary: e.summary,
+                    payload: {
+                        txHash: e.txHash,
+                        blockNumber: e.blockNumber,
+                        logIndex: e.logIndex,
+                        topic0: e.topic0,
+                        source: e.source,
+                    },
+                    status: "confirmed",
+                });
+            }
+        });
 
         this.loadHCSTopics();
+        this.hcs
+            .ensureTopics([HCSTopicType.GOVERNANCE, HCSTopicType.AGENT_REGISTRY])
+            .catch((err) => {
+                console.error("Failed to prewarm HCS topics:", err);
+            });
         this.onchainIndexer.init().catch((err) => {
             console.error("Failed to initialize onchain indexer:", err);
         });
@@ -98,7 +135,24 @@ class CCCGatewaySingleton {
         }
 
         this.adi = getGatewayAdiClients();
-        this.onchainIndexer = new OnchainIndexer(this.adi);
+        this.onchainIndexer = new OnchainIndexer(this.adi, async (events) => {
+            for (const e of events) {
+                await this.recordGatewayEvent({
+                    id: e.id,
+                    type: "ADI_ONCHAIN",
+                    agent: e.contract,
+                    summary: e.summary,
+                    payload: {
+                        txHash: e.txHash,
+                        blockNumber: e.blockNumber,
+                        logIndex: e.logIndex,
+                        topic0: e.topic0,
+                        source: e.source,
+                    },
+                    status: "confirmed",
+                });
+            }
+        });
         await this.onchainIndexer.init();
     }
 
@@ -168,10 +222,34 @@ class CCCGatewaySingleton {
         status?: string;
     }): Promise<string> {
         const eventId = data.id || crypto.randomUUID();
-        const timestamp = new Date().toISOString();
+        await this.eventHub.triggerEvent("gateway.event.persist", {
+            id: eventId,
+            type: data.type,
+            agent: data.agent,
+            summary: data.summary,
+            topicId: data.topicId,
+            payload: data.payload,
+            status: data.status,
+            timestamp: new Date().toISOString(),
+        });
+
+        return eventId;
+    }
+
+    private async persistGatewayEventInternal(data: {
+        id: string;
+        type: string;
+        agent: string;
+        summary: string;
+        topicId?: string;
+        payload?: unknown;
+        status?: string;
+        timestamp?: string;
+    }): Promise<void> {
+        const timestamp = data.timestamp || new Date().toISOString();
 
         this.eventLog.push({
-            id: eventId,
+            id: data.id,
             type: data.type,
             agent: data.agent,
             timestamp,
@@ -179,15 +257,13 @@ class CCCGatewaySingleton {
         });
 
         await this.logEvent({
-            eventId,
+            eventId: data.id,
             agentId: data.agent,
             eventType: data.type,
             topicId: data.topicId,
             payload: data.payload ?? { summary: data.summary },
             status: data.status ?? "delivered",
         });
-
-        return eventId;
     }
 
     public async getRecentPersistentEvents(count: number, agent?: string): Promise<Array<{
@@ -275,6 +351,156 @@ class CCCGatewaySingleton {
             eventsCount: Number(eventsCountRes.rows[0]?.total || 0),
             metricsCount: Number(metricsCountRes.rows[0]?.total || 0),
             latestEventAt: latestEventRes.rows[0]?.latest || null,
+        };
+    }
+
+    public async logCCCIdEvent(data: {
+        contributor: string;
+        cccId: string;
+        year: number;
+        week: number;
+        sequence: number;
+        reward: number;
+        instanceId?: string;
+    }): Promise<void> {
+        if (!this.timescale) return;
+
+        try {
+            await this.timescale.query(
+                `INSERT INTO ccc_id_events (time, contributor, ccc_id, year, week, sequence, reward, instance_id, metadata)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`,
+                [
+                    new Date(),
+                    data.contributor,
+                    data.cccId,
+                    data.year,
+                    data.week,
+                    data.sequence,
+                    data.reward,
+                    data.instanceId || this.instance,
+                    JSON.stringify({ source: "gateway.ccc-id" }),
+                ]
+            );
+        } catch (err) {
+            console.error("Failed to log CCC-ID event to TimescaleDB:", err);
+        }
+    }
+
+    public async upsertScratchpadEntry(data: {
+        agentId: string;
+        clientId: string;
+        key: string;
+        value: unknown;
+        ttl?: string;
+    }): Promise<void> {
+        if (!this.timescale) return;
+
+        await this.timescale.query(
+            `INSERT INTO agent_scratchpad (agent_id, client_id, key, value, ttl)
+             VALUES ($1::uuid, $2::uuid, $3, $4::jsonb, $5::timestamptz)
+             ON CONFLICT (agent_id, key)
+             DO UPDATE SET value = EXCLUDED.value, ttl = EXCLUDED.ttl, updated_at = NOW()`,
+            [
+                data.agentId,
+                data.clientId,
+                data.key,
+                JSON.stringify(data.value ?? {}),
+                data.ttl ?? null,
+            ]
+        );
+    }
+
+    public async appendWorkingMemory(data: {
+        agentId: string;
+        clientId: string;
+        sessionId?: string;
+        memoryType: "episodic" | "semantic" | "procedural" | "conversation";
+        content: string;
+        relevanceScore?: number;
+        decayRate?: number;
+        metadata?: unknown;
+    }): Promise<void> {
+        if (!this.timescale) return;
+
+        await this.timescale.query(
+            `INSERT INTO agent_working_memory (
+                agent_id,
+                client_id,
+                session_id,
+                memory_type,
+                content,
+                relevance_score,
+                decay_rate,
+                metadata
+             ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8::jsonb)`,
+            [
+                data.agentId,
+                data.clientId,
+                data.sessionId ?? null,
+                data.memoryType,
+                data.content,
+                data.relevanceScore ?? 1,
+                data.decayRate ?? 0.95,
+                JSON.stringify(data.metadata ?? {}),
+            ]
+        );
+    }
+
+    public async createCheckpoint(data: {
+        sessionId: string;
+        agentId: string;
+        stepNumber: number;
+        checkpointState: unknown;
+        memorySnapshot?: unknown;
+    }): Promise<void> {
+        if (!this.timescale) return;
+
+        await this.timescale.query(
+            `INSERT INTO agent_checkpoints (
+                session_id,
+                agent_id,
+                step_number,
+                checkpoint_state,
+                memory_snapshot
+             ) VALUES ($1::uuid, $2::uuid, $3, $4::jsonb, $5::jsonb)
+             ON CONFLICT (session_id, step_number)
+             DO UPDATE SET checkpoint_state = EXCLUDED.checkpoint_state, memory_snapshot = EXCLUDED.memory_snapshot`,
+            [
+                data.sessionId,
+                data.agentId,
+                data.stepNumber,
+                JSON.stringify(data.checkpointState ?? {}),
+                JSON.stringify(data.memorySnapshot ?? null),
+            ]
+        );
+    }
+
+    public async getContinuousStats(): Promise<{
+        hourly: Array<Record<string, unknown>>;
+        daily: Array<Record<string, unknown>>;
+    }> {
+        if (!this.timescale) return { hourly: [], daily: [] };
+
+        const [hourly, daily] = await Promise.all([
+            this.timescale.query<Record<string, unknown>>(
+                `SELECT *
+                 FROM agent_hourly_stats
+                 WHERE bucket > NOW() - INTERVAL '24 hours'
+                 ORDER BY bucket DESC
+                 LIMIT 200`
+            ),
+            this.timescale.query<Record<string, unknown>>(
+                `SELECT *
+                 FROM network_daily_stats
+                 WHERE bucket > NOW() - INTERVAL '30 days'
+                 ORDER BY bucket DESC
+                 LIMIT 60`
+            ),
+        ]);
+
+        return {
+            hourly: hourly.rows,
+            daily: daily.rows,
         };
     }
 
