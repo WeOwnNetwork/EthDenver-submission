@@ -48,3 +48,6 @@ yarn-error.log*
 ## for the foundry contracts deployment
 **/broadcast/
 **/cache/
+
+# Runtime data files
+apps/gateway/.data/
