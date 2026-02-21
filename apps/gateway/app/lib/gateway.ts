@@ -280,13 +280,12 @@ class CCCGatewaySingleton {
                 metricsCount: Number(metricsCountRes.rows[0]?.total || 0),
                 latestEventAt: latestEventRes.rows[0]?.latest || null,
             };
-        } catch (err) {
+        } catch {
             return {
                 enabled: true,
                 eventsCount: 0,
                 metricsCount: 0,
                 latestEventAt: null,
-                error: String(err),
             };
         }
     }
