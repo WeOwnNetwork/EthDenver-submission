@@ -85,6 +85,10 @@
 | RMN_2026-W08_154 | R | Root cause: CORS middleware matcher was "/api/:path*" — gateway routes (/connect /volley etc.) were never under /api/, so OPTIONS preflight got no CORS headers, browser blocked request. Fix: changed matcher to "/(.*)". Also clarified LLM step is for UI chat panel, not AnythingLLM instances. | `1e9ce83` |
 | RMN_2026-W08_155 | P | How to rebuild + server commands after CORS fix | — |
 | RMN_2026-W08_156 | R | Server commands: git pull + pnpm --filter gateway build + pm2 reload ccc-gateway; then retry Launch Gateway | — |
+| RMN_2026-W08_157 | P | Launch Gateway works; chat panel sends messages; but: CCC-ID shows 'undefined', stats all 0, chatbot giving generic responses (not AnythingLLM), no on-chain tracking | — |
+| RMN_2026-W08_158 | R | Diagnosed 3 bugs: (1) gateway-client type says {id} but API returns {ccc_id}; (2) stats-cards uses ?? which doesn't fall through on 0 (onchain.totalAgents=0); (3) chat-panel calls /ai directly not /volley, so AnythingLLM never used. Fix: sendVolley replaces generateCCCId+callLLM in chat-panel, ?? → || in stats-cards, ccc_id type fix in gateway-client. Pushed 90b1b51 | `90b1b51` |
+| RMN_2026-W08_159 | P | Server rebuild commands after 3 chat panel fixes | — |
+| RMN_2026-W08_160 | R | cd /opt/ccc && git pull && pnpm --filter web build && pm2 reload ccc-web; then hard refresh browser, reconnect wallet, send message — should see real CCC-ID + AnythingLLM response + stats incrementing | — |
 
 ---
 
@@ -121,14 +125,15 @@
 - TimescaleDB: eventsCount=4, metricsCount=4 ✅
 - OnchainIndex: lastIndexedBlock=41539 ✅
 - API smoke tests: /connect ✅ /ccc-id ✅ /stats ✅ (registeredAgents:1, totalCCCIds:1, hcsMessages:2)
-- CORS fix pending rebuild: gateway needs git pull + rebuild + pm2 reload
+- CORS fix applied ✅ (gateway rebuilt, Launch Gateway works)
+- Web rebuild pending: 3 chat panel fixes (CCC-ID field, stats fallback, volley routing) pushed 90b1b51
 
 ---
 
 ## Running Totals
 
-- **Prompts issued:** ~68 (097–156)
-- **Responses delivered:** ~68
-- **Commits authored:** 13
+- **Prompts issued:** ~72 (097–160)
+- **Responses delivered:** ~72
+- **Commits authored:** 14
 - **Files modified:** 12+
 - **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅ (local only)
