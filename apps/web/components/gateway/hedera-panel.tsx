@@ -109,6 +109,7 @@ export function HederaPanel() {
     const [freezeAccountId, setFreezeAccountId] = useState("");
     const [freezeReason, setFreezeReason] = useState("");
     const [pauseTokenId, setPauseTokenId] = useState("");
+    const [lastAttestationTxId, setLastAttestationTxId] = useState<string | null>(null);
 
     const registry = data?.data;
 
@@ -142,6 +143,13 @@ export function HederaPanel() {
                 const dataPayload = result.data as { registry?: Record<string, string> };
                 if (dataPayload.registry) {
                     setTokenRegistryCache(dataPayload.registry);
+                }
+            }
+
+            if (action === "attest-hcs-smoke" && result?.ok && result?.data && typeof result.data === "object") {
+                const dataPayload = result.data as { transactionId?: string };
+                if (dataPayload.transactionId) {
+                    setLastAttestationTxId(dataPayload.transactionId);
                 }
             }
 
@@ -292,6 +300,57 @@ export function HederaPanel() {
 
                 {/* ── HCS Tab ── */}
                 <TabsContent value="hcs" className="space-y-3 mt-3">
+                    <Card className="bg-slate-900/50 border-slate-800/50">
+                        <CardContent className="p-3 flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <p className="text-sm font-medium text-white">HCS Attestor Controls</p>
+                                <p className="text-xs text-slate-400">Create missing topics and test on-chain attestation from UI</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    onClick={() => handleAction("bootstrap-hcs", {}, "Bootstrap HCS Topics")}
+                                    disabled={mutation.isPending}
+                                    variant="outline"
+                                    size="sm"
+                                >
+                                    <Hash className="w-3 h-3 mr-1.5" />
+                                    {mutation.isPending ? "Creating…" : "Bootstrap HCS"}
+                                </Button>
+                                <Button
+                                    onClick={() => handleAction("attest-hcs-smoke", {}, "HCS Smoke Attestation")}
+                                    disabled={mutation.isPending}
+                                    size="sm"
+                                    className="bg-cyan-600 hover:bg-cyan-700"
+                                >
+                                    <Zap className="w-3 h-3 mr-1.5" />
+                                    {mutation.isPending ? "Sending…" : "Test Attestation"}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-slate-900/50 border-slate-800/50">
+                        <CardContent className="p-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-sm font-medium text-white">Last Attestation Tx ID</p>
+                                    <p className="text-xs text-slate-400">
+                                        {lastAttestationTxId || "No HCS attestation sent from this session yet"}
+                                    </p>
+                                </div>
+                                {lastAttestationTxId && (
+                                    <button
+                                        onClick={() => navigator.clipboard.writeText(lastAttestationTxId)}
+                                        className="text-slate-500 hover:text-white transition-colors"
+                                        title="Copy transaction ID"
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     <div className="grid gap-3 sm:grid-cols-2">
                         {Object.entries(registry?.hcsTopics || {}).map(([name, topicId]) => (
                             <Card key={name} className="bg-slate-900/50 border-slate-800/50">

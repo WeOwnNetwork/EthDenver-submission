@@ -59,6 +59,7 @@ export function OnboardingFlow() {
             await connectAgent.mutateAsync({
                 ccc: store.ccc!,
                 contributor: store.contributor || undefined,
+                role: "tool_agent",
                 tier: "contributor",
                 baseAddress: address,
             });

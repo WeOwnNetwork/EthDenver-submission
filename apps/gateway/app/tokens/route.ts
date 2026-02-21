@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { gateway } from "../lib/gateway";
+import { HCSTopicType } from "@repo/hedera/hcs";
 
 // List token registry & bootstrap new tokens on Hedera testnet
 // GET /tokens  → return current token registry
@@ -7,6 +8,8 @@ import { gateway } from "../lib/gateway";
 
 export async function GET() {
     try {
+        const runtimeTopics = gateway.hcs.getStats().topics;
+
         // Return token registry from env or gateway state
         const tokens = {
             CCC_TOKEN: process.env.CCC_TOKEN || null,
@@ -17,12 +20,21 @@ export async function GET() {
         };
 
         const hcsTopics = {
-            CCC_ID: process.env.HCS_TOPIC_CCC_ID || null,
-            CONTEXT_VOLLEY: process.env.HCS_TOPIC_CONTEXT_VOLLEY || null,
-            GOVERNANCE: process.env.HCS_TOPIC_GOVERNANCE || null,
-            VSA: process.env.HCS_TOPIC_VSA || null,
-            AGENT_REGISTRY: process.env.HCS_TOPIC_AGENT_REGISTRY || null,
-            SEASON: process.env.HCS_TOPIC_SEASON || null,
+            CCC_ID: (runtimeTopics[HCSTopicType.CCC_ID] as string | undefined) || process.env.HCS_TOPIC_CCC_ID || null,
+            CONTEXT_VOLLEY:
+                (runtimeTopics[HCSTopicType.CONTEXT_VOLLEY] as string | undefined) ||
+                process.env.HCS_TOPIC_CONTEXT_VOLLEY ||
+                null,
+            GOVERNANCE:
+                (runtimeTopics[HCSTopicType.GOVERNANCE] as string | undefined) ||
+                process.env.HCS_TOPIC_GOVERNANCE ||
+                null,
+            VSA: (runtimeTopics[HCSTopicType.VSA] as string | undefined) || process.env.HCS_TOPIC_VSA || null,
+            AGENT_REGISTRY:
+                (runtimeTopics[HCSTopicType.AGENT_REGISTRY] as string | undefined) ||
+                process.env.HCS_TOPIC_AGENT_REGISTRY ||
+                null,
+            SEASON: (runtimeTopics[HCSTopicType.SEASON] as string | undefined) || process.env.HCS_TOPIC_SEASON || null,
         };
 
         const hederaAccount = process.env.HEDERA_ACCOUNT_ID || null;
@@ -49,11 +61,52 @@ export async function POST(request: Request) {
         const body = await request.json();
         const action = body.action as string;
 
+        const hcsTopicMappings: Array<{ label: string; type: HCSTopicType; envKey: string }> = [
+            { label: "CCC_ID", type: HCSTopicType.CCC_ID, envKey: "HCS_TOPIC_CCC_ID" },
+            { label: "CONTEXT_VOLLEY", type: HCSTopicType.CONTEXT_VOLLEY, envKey: "HCS_TOPIC_CONTEXT_VOLLEY" },
+            { label: "GOVERNANCE", type: HCSTopicType.GOVERNANCE, envKey: "HCS_TOPIC_GOVERNANCE" },
+            { label: "VSA", type: HCSTopicType.VSA, envKey: "HCS_TOPIC_VSA" },
+            { label: "AGENT_REGISTRY", type: HCSTopicType.AGENT_REGISTRY, envKey: "HCS_TOPIC_AGENT_REGISTRY" },
+            { label: "SEASON", type: HCSTopicType.SEASON, envKey: "HCS_TOPIC_SEASON" },
+        ];
+
         if (action === "bootstrap") {
             // Dynamic import to avoid loading Hedera SDK on every request
             const { bootstrapTokenRegistry } = await import("@repo/hedera/tokens");
             const registry = await bootstrapTokenRegistry();
             return NextResponse.json({ ok: true, data: { registry } });
+        }
+
+        if (action === "bootstrap-hcs") {
+            const currentTopics = gateway.hcs.getStats().topics;
+            const created: Record<string, string> = {};
+            const topics: Record<string, string> = {};
+
+            for (const mapping of hcsTopicMappings) {
+                const existing = currentTopics[mapping.type] as string | undefined;
+                if (existing) {
+                    topics[mapping.label] = existing;
+                    process.env[mapping.envKey] = existing;
+                    continue;
+                }
+
+                const newTopicId = await gateway.hcs.createTopic(mapping.type);
+                topics[mapping.label] = newTopicId;
+                created[mapping.label] = newTopicId;
+                process.env[mapping.envKey] = newTopicId;
+            }
+
+            return NextResponse.json({ ok: true, data: { topics, created } });
+        }
+
+        if (action === "attest-hcs-smoke") {
+            const result = await gateway.hcs.attestGovernance({
+                action: "LEARNING_LOGGED",
+                description: "UI smoke attestation",
+                locked_by: "AI:@SYSTEM",
+            });
+
+            return NextResponse.json({ ok: true, data: result });
         }
 
         if (action === "mint-ccc") {

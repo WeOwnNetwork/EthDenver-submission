@@ -18,6 +18,28 @@ interface GatewayResponse<T = unknown> {
     violations?: string[];
 }
 
+function toErrorString(value: unknown): string {
+    if (typeof value === "string") return value;
+    if (value instanceof Error) return value.message;
+    if (value && typeof value === "object") {
+        const maybeMessage = (value as { message?: unknown }).message;
+        const maybeCode = (value as { code?: unknown }).code;
+
+        if (typeof maybeMessage === "string" && typeof maybeCode === "string") {
+            return `${maybeCode}: ${maybeMessage}`;
+        }
+        if (typeof maybeMessage === "string") return maybeMessage;
+        if (typeof maybeCode === "string") return maybeCode;
+
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return "Unexpected error";
+        }
+    }
+    return "Unexpected error";
+}
+
 async function gw<T>(
     path: string,
     options?: RequestInit,
@@ -26,7 +48,12 @@ async function gw<T>(
         headers: { "Content-Type": "application/json" },
         ...options,
     });
-    return res.json();
+    const payload = (await res.json()) as GatewayResponse<T> & { error?: unknown };
+
+    return {
+        ...payload,
+        error: payload.error !== undefined ? toErrorString(payload.error) : undefined,
+    };
 }
 
 // ═══════════════════════════════════════════════════════
@@ -36,7 +63,7 @@ async function gw<T>(
 export async function connectAgent(data: {
     ccc: string;
     contributor?: string;
-    role?: string;
+    role?: "orchestrator" | "user_agent" | "tool_agent";
     tier?: "founding_og" | "contributor" | "tool_agent";
     hederaAccountId?: string;
     baseAddress?: string;

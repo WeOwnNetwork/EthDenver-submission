@@ -114,7 +114,7 @@ function AgentRegistryPanel() {
             const res = await connectAgent({
                 ccc: ccc.toUpperCase(),
                 contributor,
-                role: "contributor",
+                role: "tool_agent",
                 tier: "contributor",
             });
             if (res.ok) {
