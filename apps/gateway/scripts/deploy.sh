@@ -28,4 +28,4 @@ echo "==> Gateway status:"
 pm2 status ccc-gateway
 
 echo ""
-echo "✅ Deploy complete — https://ethdenver2026.payless.tax/health"
+echo "✅ Deploy complete — https://api.ethdenver2026.payless.tax/health"
