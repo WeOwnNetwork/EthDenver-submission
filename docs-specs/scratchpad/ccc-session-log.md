@@ -69,6 +69,12 @@
 | RMN_2026-W08_138 | R | WebSocket timeout — refresh browser or reopen Console; power cycle if droplet frozen | — |
 | RMN_2026-W08_139 | P | Full server output — gateway build failed, 502 on api subdomain, web running on 3001 | — |
 | RMN_2026-W08_140 | R | Root cause: @repo/hedera not built — dist/ missing on server. Fix: build hedera → rebuild gateway → create web .env.local → rebuild web → pm2 reload both | — |
+| RMN_2026-W08_141 | P | pnpm --filter @repo/hedera build from /root — No projects found | — |
+| RMN_2026-W08_142 | R | Wrong dir — must run from /opt/ccc; gave corrected full ordered command sequence | — |
+| RMN_2026-W08_143 | P | All commands run — hedera built ✅, gateway TS error at gateway.ts:289 (error field not in type), web built ✅, ccc-web online ✅, gateway crashed ↺200, 502 on api subdomain | — |
+| RMN_2026-W08_144 | R | Root cause: error field in catch block not in inferred return type — removed it; deploy.sh also updated to build hedera first; pushed fix f84f990 | `f84f990` |
+| RMN_2026-W08_145 | P | Give all commands to set up and test everything | — |
+| RMN_2026-W08_146 | R | Full ordered command sequence: git pull → build hedera → build gateway → web .env.local → build web → pm2 start gateway → verify local + HTTPS | — |
 
 ---
 
@@ -84,6 +90,8 @@
 | `17cda93` | chore: DO deployment scripts, pm2 ecosystem, nginx config, session log |
 | `0af7a7b` | fix: nginx subdomains — UI on ethdenver2026, gateway on api.ethdenver2026 |
 | `4850ec4` | fix: deploy.sh health URL → api subdomain; web .env.local → prod API URL |
+| `f9cbb17` | fix: deploy.sh builds @repo/hedera before gateway |
+| `f84f990` | fix: gateway.ts catch block — remove unknown error field, fix TS build error |
 
 ## Deployment Infrastructure Decisions
 - Gateway: `api.ethdenver2026.payless.tax` → port 3002 (DO droplet)
@@ -93,18 +101,18 @@
 - SSH key: ~/DO-ETHDenver (private) + ~/DO-ETHDenver.pub (public, added to droplet)
 - SSH alias: `Host ethdenver-buidlathon` → 134.199.195.88
 
-## Server Status (as of CCC-140)
+## Server Status (as of CCC-146)
 - Node 20 ✅ | pnpm 9.15.9 ✅ | pm2 6.0.14 ✅ | nginx ✅ | certbot ✅
 - SSL certs: both subdomains issued ✅ (expires 2026-05-22)
-- Web (port 3001): built + running ✅ (but needs rebuild with prod NEXT_PUBLIC_API_URL)
-- Gateway (port 3002): build FAILED — @repo/hedera dist/ missing → pm2 crashing → 502 ❌
+- Web (port 3001): built ✅ + ccc-web online ✅ + ethdenver2026.payless.tax → 307/gateway ✅
+- Gateway (port 3002): TS fix pushed — awaiting server pull + rebuild → pm2 start
 
 ---
 
 ## Running Totals
 
-- **Prompts issued:** ~50 (097–140)
-- **Responses delivered:** ~50
-- **Commits authored:** 8
+- **Prompts issued:** ~58 (097–146)
+- **Responses delivered:** ~58
+- **Commits authored:** 10
 - **Files modified:** 12+
 - **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅ (local only)
