@@ -81,6 +81,10 @@
 | RMN_2026-W08_150 | R | /connect + /ccc-id validation working correctly — test data wrong (need 3-char /^[A-Z]{3}$/ CCC); Connect Wallet bug: error not shown when no wallet; fixed landing-page.tsx — added handleConnect + error display; pushed d40ee4a | `d40ee4a` |
 | RMN_2026-W08_151 | P | How to set up MetaMask? + update memory + ccc log | — |
 | RMN_2026-W08_152 | R | MetaMask setup: install extension, add ADL Testnet (chainId 99999, RPC https://rpc.ab.testnet.adifoundation.ai), connect, complete onboarding with 3-char CCC code | — |
+| RMN_2026-W08_153 | P | Rebuild done; /connect+/ccc-id+/stats all pass (registeredAgents:1, totalCCCIds:1, hcsMessages:2); wallet connected, onboarding reached Confirm; Launch Gateway fails: "Registration failed: TypeError: Failed to fetch" | — |
+| RMN_2026-W08_154 | R | Root cause: CORS middleware matcher was "/api/:path*" — gateway routes (/connect /volley etc.) were never under /api/, so OPTIONS preflight got no CORS headers, browser blocked request. Fix: changed matcher to "/(.*)". Also clarified LLM step is for UI chat panel, not AnythingLLM instances. | `1e9ce83` |
+| RMN_2026-W08_155 | P | How to rebuild + server commands after CORS fix | — |
+| RMN_2026-W08_156 | R | Server commands: git pull + pnpm --filter gateway build + pm2 reload ccc-gateway; then retry Launch Gateway | — |
 
 ---
 
@@ -98,6 +102,8 @@
 | `4850ec4` | fix: deploy.sh health URL → api subdomain; web .env.local → prod API URL |
 | `f9cbb17` | fix: deploy.sh builds @repo/hedera before gateway |
 | `f84f990` | fix: gateway.ts catch block — remove unknown error field, fix TS build error |
+| `d40ee4a` | fix: landing-page Connect Wallet — add error handling + no-wallet alert |
+| `1e9ce83` | fix: CORS middleware matcher — apply to all routes not just /api/* |
 
 ## Deployment Infrastructure Decisions
 - Gateway: `api.ethdenver2026.payless.tax` → port 3002 (DO droplet)
@@ -107,20 +113,22 @@
 - SSH key: ~/DO-ETHDenver (private) + ~/DO-ETHDenver.pub (public, added to droplet)
 - SSH alias: `Host ethdenver-buidlathon` → 134.199.195.88
 
-## Server Status (as of CCC-148) ✅ FULLY DEPLOYED
+## Server Status (as of CCC-156)
 - Node 20 ✅ | pnpm ✅ | pm2 ✅ | nginx ✅ | certbot ✅
 - SSL: both subdomains live (expires 2026-05-22) ✅
 - Web: https://ethdenver2026.payless.tax → 307/gateway ✅
 - Gateway: https://api.ethdenver2026.payless.tax/health → {"status":"healthy","instance":"INT-E01","season":3} ✅
 - TimescaleDB: eventsCount=4, metricsCount=4 ✅
-- OnchainIndex: lastIndexedBlock=41477 ✅
+- OnchainIndex: lastIndexedBlock=41539 ✅
+- API smoke tests: /connect ✅ /ccc-id ✅ /stats ✅ (registeredAgents:1, totalCCCIds:1, hcsMessages:2)
+- CORS fix pending rebuild: gateway needs git pull + rebuild + pm2 reload
 
 ---
 
 ## Running Totals
 
-- **Prompts issued:** ~64 (097–152)
-- **Responses delivered:** ~64
-- **Commits authored:** 11
+- **Prompts issued:** ~68 (097–156)
+- **Responses delivered:** ~68
+- **Commits authored:** 13
 - **Files modified:** 12+
 - **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅ (local only)
