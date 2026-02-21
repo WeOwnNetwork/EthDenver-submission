@@ -15,7 +15,15 @@ const FEATURES = [
 ];
 
 export function LandingPage() {
-    const { connect, isPending } = useConnect();
+    const { connect, isPending, error } = useConnect();
+
+    const handleConnect = () => {
+        if (typeof window !== "undefined" && !(window as any).ethereum) {
+            alert("No wallet detected. Please install MetaMask or another EIP-1193 wallet extension, then reload.");
+            return;
+        }
+        connect({ connector: injected() });
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[hsl(222,47%,6%)] relative overflow-hidden">
@@ -108,7 +116,7 @@ export function LandingPage() {
                         <Button
                             variant="gradient"
                             size="xl"
-                            onClick={() => connect({ connector: injected() })}
+                            onClick={handleConnect}
                             disabled={isPending}
                             className="w-full text-base font-semibold"
                         >
@@ -122,6 +130,14 @@ export function LandingPage() {
                                 </span>
                             )}
                         </Button>
+
+                        {error && (
+                            <p className="text-xs text-center text-red-400 mt-3">
+                                {error.message.includes("not found") || error.message.includes("No injected")
+                                    ? "No wallet found — install MetaMask and reload."
+                                    : error.message}
+                            </p>
+                        )}
 
                         <p className="text-xs text-center text-slate-500 mt-4">
                             Connect with MetaMask or any injected wallet
