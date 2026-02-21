@@ -77,6 +77,10 @@
 | RMN_2026-W08_146 | R | Full ordered command sequence: git pull → build hedera → build gateway → web .env.local → build web → pm2 start gateway → verify local + HTTPS | — |
 | RMN_2026-W08_147 | P | Gateway build success, both pm2 processes online, /health returns healthy JSON locally + over HTTPS | — |
 | RMN_2026-W08_148 | R | DEPLOYMENT CONFIRMED LIVE ✅ — api.ethdenver2026.payless.tax/health healthy, TimescaleDB connected, onchain index running; next: pm2 save + smoke test /connect /ccc-id /stats + open UI in browser | — |
+| RMN_2026-W08_149 | P | pm2 save done; /stats ok; /connect + /ccc-id validation errors; Connect Wallet just refreshes; UI dashboard screenshot ✅ | — |
+| RMN_2026-W08_150 | R | /connect + /ccc-id validation working correctly — test data wrong (need 3-char /^[A-Z]{3}$/ CCC); Connect Wallet bug: error not shown when no wallet; fixed landing-page.tsx — added handleConnect + error display; pushed d40ee4a | `d40ee4a` |
+| RMN_2026-W08_151 | P | How to set up MetaMask? + update memory + ccc log | — |
+| RMN_2026-W08_152 | R | MetaMask setup: install extension, add ADL Testnet (chainId 99999, RPC https://rpc.ab.testnet.adifoundation.ai), connect, complete onboarding with 3-char CCC code | — |
 
 ---
 
@@ -115,8 +119,8 @@
 
 ## Running Totals
 
-- **Prompts issued:** ~60 (097–148)
-- **Responses delivered:** ~60
-- **Commits authored:** 10
+- **Prompts issued:** ~64 (097–152)
+- **Responses delivered:** ~64
+- **Commits authored:** 11
 - **Files modified:** 12+
 - **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅ (local only)
