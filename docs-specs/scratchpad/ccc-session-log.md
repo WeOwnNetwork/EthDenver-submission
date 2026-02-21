@@ -89,6 +89,10 @@
 | RMN_2026-W08_158 | R | Diagnosed 3 bugs: (1) gateway-client type says {id} but API returns {ccc_id}; (2) stats-cards uses ?? which doesn't fall through on 0 (onchain.totalAgents=0); (3) chat-panel calls /ai directly not /volley, so AnythingLLM never used. Fix: sendVolley replaces generateCCCId+callLLM in chat-panel, ?? → || in stats-cards, ccc_id type fix in gateway-client. Pushed 90b1b51 | `90b1b51` |
 | RMN_2026-W08_159 | P | Server rebuild commands after 3 chat panel fixes | — |
 | RMN_2026-W08_160 | R | cd /opt/ccc && git pull && pnpm --filter web build && pm2 reload ccc-web; then hard refresh browser, reconnect wallet, send message — should see real CCC-ID + AnythingLLM response + stats incrementing | — |
+| RMN_2026-W08_161 | P | Stats showed 1 agent, 2 CCC IDs, 0 volleys, 3 ISC — but chat messages errored with ⚠️ Error: [object Object]; volleys counter incremented even on error | — |
+| RMN_2026-W08_162 | R | Root cause: volley/route.ts called cccGen.generate("AI:@RMN") but generator requires /^[A-Z]{3}$/ — threw "Invalid CCC: AI:@RMN". Error object became [object Object] in UI. totalVolleys++ was before the throw so counter incremented. Fix: strip "AI:@" prefix → fromCcc="RMN"; move totalVolleys++ after generate; fix error message extraction in chat-panel. Pushed 42d6df6 | `42d6df6` |
+| RMN_2026-W08_163 | P | Server rebuild commands for both gateway and web | — |
+| RMN_2026-W08_164 | R | cd /opt/ccc && git pull origin roman/infra-deploy && pnpm --filter gateway build && pm2 reload ccc-gateway && pnpm --filter web build && pm2 reload ccc-web | — |
 
 ---
 
@@ -126,14 +130,14 @@
 - OnchainIndex: lastIndexedBlock=41539 ✅
 - API smoke tests: /connect ✅ /ccc-id ✅ /stats ✅ (registeredAgents:1, totalCCCIds:1, hcsMessages:2)
 - CORS fix applied ✅ (gateway rebuilt, Launch Gateway works)
-- Web rebuild pending: 3 chat panel fixes (CCC-ID field, stats fallback, volley routing) pushed 90b1b51
+- Web + gateway rebuild pending (42d6df6): volley AI:@ prefix fix, totalVolleys++ placement, error display fix
 
 ---
 
 ## Running Totals
 
-- **Prompts issued:** ~72 (097–160)
-- **Responses delivered:** ~72
-- **Commits authored:** 14
+- **Prompts issued:** ~76 (097–164)
+- **Responses delivered:** ~76
+- **Commits authored:** 15
 - **Files modified:** 12+
 - **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅ (local only)
