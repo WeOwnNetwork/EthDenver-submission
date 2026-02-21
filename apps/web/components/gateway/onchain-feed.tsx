@@ -45,8 +45,7 @@ export function OnchainFeed() {
         [address, walletAddress, ccc, getSessionKey]
     );
 
-    const agentFilter = ccc ? `AI:@${ccc}` : undefined;
-    const { data: response, isLoading } = useEvents(30, agentFilter);
+    const { data: response, isLoading } = useEvents(50);
 
     const payload = response?.data;
     const apiEvents: GatewayEvent[] = Array.isArray(payload)
@@ -130,15 +129,32 @@ export function OnchainFeed() {
                                                         {config.label}
                                                     </Badge>
                                                 </div>
-                                                <p className="text-xs text-slate-400 truncate">
-                                                    {event.agent}{event.cccId ? ` · ${event.cccId}` : ""}
-                                                </p>
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                                    <p className="text-xs text-slate-400 font-mono">{event.agent}</p>
+                                                    {event.to && (
+                                                        <span className="text-[10px] text-slate-500">→ {event.to}</span>
+                                                    )}
+                                                    {event.instance && (
+                                                        <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 rounded font-mono">{event.instance}</span>
+                                                    )}
+                                                    {event.cccId && (
+                                                        <span className="text-[10px] text-emerald-500 font-mono flex items-center gap-0.5">
+                                                            <Hash className="w-2.5 h-2.5" />{event.cccId}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="flex flex-col items-end gap-1 shrink-0">
                                                 <span className="text-[10px] text-slate-500">{timeAgo(event.timestamp)}</span>
-                                                {event.txHash && (
-                                                    <ExternalLink className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-cyan-400" />
-                                                )}
+                                                {event.txHash ? (
+                                                    <a href={`https://hashscan.io/testnet/transaction/${event.txHash}`} target="_blank" rel="noopener noreferrer">
+                                                        <ExternalLink className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-cyan-400" />
+                                                    </a>
+                                                ) : event.cccId ? (
+                                                    <a href={`https://hashscan.io/testnet/account/0.0.7899957`} target="_blank" rel="noopener noreferrer">
+                                                        <ExternalLink className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:text-violet-400" />
+                                                    </a>
+                                                ) : null}
                                             </div>
                                         </div>
                                         {i < events.length - 1 && <Separator className="opacity-30" />}

@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGatewayStats } from "@/lib/gateway-client";
-import { Users, Hash, Radio, Shield } from "lucide-react";
+import { Users, Hash, Hexagon, Server } from "lucide-react";
 
 export function StatsCards() {
     const { data: response, isLoading } = useGatewayStats();
@@ -11,7 +11,7 @@ export function StatsCards() {
 
     const cards = [
         {
-            label: "Agents Registered",
+            label: "Agents Connected",
             value: stats?.onchain?.totalAgents || stats?.registeredAgents || 0,
             icon: Users,
             color: "text-emerald-400",
@@ -29,9 +29,9 @@ export function StatsCards() {
             glowClass: "glow-cyan",
         },
         {
-            label: "Context Volleys",
-            value: stats?.totalVolleys || 0,
-            icon: Radio,
+            label: "HCS Attested",
+            value: stats?.hcsAttested ?? stats?.totalVolleys ?? 0,
+            icon: Hexagon,
             color: "text-violet-400",
             bgColor: "bg-violet-500/10",
             borderColor: "border-violet-500/20",
@@ -40,7 +40,7 @@ export function StatsCards() {
         {
             label: "Live Instances",
             value: stats?.liveInstances ?? 0,
-            icon: Shield,
+            icon: Server,
             color: "text-amber-400",
             bgColor: "bg-amber-500/10",
             borderColor: "border-amber-500/20",

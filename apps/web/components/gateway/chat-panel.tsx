@@ -5,7 +5,7 @@ import { useAppStore, type PersistedChatMessage } from "@/lib/store";
 import { useSendVolley } from "@/lib/gateway-client";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Send, Hash, Zap, MessageSquare, Globe } from "lucide-react";
+import { Send, Hash, Zap, MessageSquare, Globe, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,8 @@ export function ChatPanel() {
     const [input, setInput] = useState("");
     const [isThinking, setIsThinking] = useState(false);
     const [targetInstance, setTargetInstance] = useState("INT-E01");
+    const [relayingFor, setRelayingFor] = useState<string | null>(null);
+    const [isRelaying, setIsRelaying] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const sendVolley = useSendVolley();
 
@@ -170,6 +172,33 @@ export function ChatPanel() {
         setIsThinking(false);
     };
 
+    const handleRelay = async (content: string, instId: string) => {
+        setIsRelaying(instId);
+        setRelayingFor(null);
+        try {
+            const gwResult = await sendVolley.mutateAsync({
+                from: `AI:@${ccc}`,
+                to: "GTM",
+                volleyType: "SEEK",
+                content,
+                attest: true,
+                instanceId: instId,
+            });
+            if (gwResult.ok && gwResult.data) {
+                const { cccId, response, instanceId: respInstance } = gwResult.data;
+                const instLabel = INSTANCES.find(i => i.id === (respInstance || instId))?.label || instId;
+                const msgs: Message[] = [
+                    { id: crypto.randomUUID(), role: "system", content: `🆔 **${cccId}** → ${instLabel} (+10 $CCC) ✅ HCS`, cccId, timestamp: new Date() },
+                ];
+                if (response) msgs.push({ id: crypto.randomUUID(), role: "assistant", content: response, agentId: respInstance || instId, cccId, timestamp: new Date() });
+                setMessages(prev => [...prev, ...msgs]);
+            }
+        } catch (err) {
+            toast.error(`Relay failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+        setIsRelaying(null);
+    };
+
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
@@ -222,8 +251,35 @@ export function ChatPanel() {
                                 <div className="text-sm whitespace-pre-wrap leading-relaxed">
                                     {msg.content}
                                 </div>
-                                <div className="text-xs text-slate-500 mt-1.5">
-                                    {msg.timestamp.toLocaleTimeString()}
+                                <div className="flex items-center justify-between mt-1.5">
+                                    <span className="text-xs text-slate-500">{msg.timestamp.toLocaleTimeString()}</span>
+                                    {msg.role === "assistant" && !isThinking && (
+                                        <div className="flex items-center gap-1">
+                                            {relayingFor === msg.id ? (
+                                                <>
+                                                    <span className="text-[10px] text-slate-500">Relay →</span>
+                                                    {INSTANCES.filter(i => i.id !== targetInstance).map(inst => (
+                                                        <button
+                                                            key={inst.id}
+                                                            onClick={() => handleRelay(msg.content, inst.id)}
+                                                            disabled={!!isRelaying}
+                                                            className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-700/50 text-slate-300 hover:bg-emerald-700/40 hover:text-white transition-colors disabled:opacity-50"
+                                                        >
+                                                            {isRelaying === inst.id ? "…" : inst.label}
+                                                        </button>
+                                                    ))}
+                                                    <button onClick={() => setRelayingFor(null)} className="text-[10px] text-slate-600 hover:text-slate-400 ml-0.5">✕</button>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setRelayingFor(msg.id)}
+                                                    className="text-[10px] text-slate-600 hover:text-emerald-400 transition-colors flex items-center gap-0.5"
+                                                >
+                                                    <ArrowRight className="w-2.5 h-2.5" /> Relay
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>

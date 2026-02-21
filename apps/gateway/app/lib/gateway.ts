@@ -226,6 +226,7 @@ class CCCGatewaySingleton {
                 typeof row.payload === "string"
                     ? safeParseJson(row.payload)
                     : (row.payload as Record<string, unknown> | null);
+            const p = payload as Record<string, unknown> | null;
 
             return {
                 id: row.event_id,
@@ -235,8 +236,23 @@ class CCCGatewaySingleton {
                 summary: buildEventSummary(row.event_type, row.agent_id, payload),
                 status: row.status,
                 source: "timescaledb" as const,
+                cccId: (p?.cccId as string) || undefined,
+                to: (p?.to as string) || undefined,
+                instance: (p?.instance as string) || undefined,
             };
         });
+    }
+
+    public async getPersistentUniqueAgentCount(): Promise<number> {
+        if (!this.timescale) return this.agentRegistry.count();
+        try {
+            const res = await this.timescale.query<{ total: string }>(
+                `SELECT COUNT(DISTINCT agent_id)::text AS total FROM volley_events WHERE event_type = 'CONNECT'`
+            );
+            return Number(res.rows[0]?.total || 0);
+        } catch {
+            return this.agentRegistry.count();
+        }
     }
 
     public async getPersistentCountByType(eventType: string): Promise<number> {
@@ -333,24 +349,26 @@ class CCCGatewaySingleton {
     }
 
     public async getStats() {
-        const [onchainStats, indexSnapshot, persistence, persistentAgents, persistentVolleys] =
+        const [onchainStats, indexSnapshot, persistence, uniqueAgents, persistentVolleys, persistentConnects] =
             await Promise.all([
                 this.onchainIndexer.getOnchainStats(),
                 Promise.resolve(this.onchainIndexer.getSnapshot()),
                 this.getPersistenceDiagnostics(),
-                this.getPersistentCountByType('CONNECT'),
+                this.getPersistentUniqueAgentCount(),
                 this.getPersistentCountByType('VOLLEY'),
+                this.getPersistentCountByType('CONNECT'),
             ]);
 
         return {
             instance: this.instance,
             season: this.season,
             uptime: (Date.now() - this.startTime.getTime()) / 1000,
-            registeredAgents: Math.max(this.agentRegistry.count(), persistentAgents),
-            totalCCCIds: this.cccGen.getTotalGenerated(),
+            registeredAgents: Math.max(this.agentRegistry.count(), uniqueAgents),
+            totalCCCIds: Math.max(this.cccGen.getTotalGenerated(), persistentVolleys),
             totalVolleys: Math.max(this.totalVolleys, persistentVolleys),
             totalBroadcasts: this.totalBroadcasts,
             hcsMessages: this.hcs.getStats().messageCount,
+            hcsAttested: persistentConnects + persistentVolleys,
             rulesLocked: this.kernel.getLockedCount(),
             onchain: onchainStats,
             onchainIndex: indexSnapshot,

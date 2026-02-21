@@ -148,6 +148,7 @@ export async function getStats() {
         totalVolleys: number;
         totalBroadcasts: number;
         hcsMessages: number;
+        hcsAttested?: number;
         rulesLocked: number;
         liveInstances?: number;
         onchain?: {
@@ -216,6 +217,8 @@ export interface GatewayEvent {
     summary: string;
     timestamp: string;
     cccId?: string;
+    to?: string;
+    instance?: string;
     txHash?: string;
     source?: "gateway" | "onchain" | "timescaledb";
 }
