@@ -97,6 +97,10 @@
 | RMN_2026-W08_166 | R | Root causes: (1) agentRegistry in-memory resets on restart; (2) “Active Volleys” counted chat messages not real cross-instance volleys; (3) “ISC Certified” counted hcsMessages not live instances; (4) chat hardcoded to GTM/INT-E01 with no UI instance selector. Fixes: persistent TimescaleDB counts for CONNECT+VOLLEY events; liveInstances from getConfiguredInstances() in stats/route; rename “Active Volleys”→“Context Volleys”, “ISC Certified”→“Live Instances”; add instanceId to VolleySchema + volley route; add E01/OG8/P01 selector buttons to chat panel; show instance+HCS in CCC-ID message. Pushed 438c0ed | `438c0ed` |
 | RMN_2026-W08_167 | P | Server rebuild commands for gateway + web after 438c0ed | — |
 | RMN_2026-W08_168 | R | cd /opt/ccc && git pull origin roman/infra-deploy && pnpm --filter gateway build && pm2 reload ccc-gateway && pnpm --filter web build && pm2 reload ccc-web | — |
+| RMN_2026-W08_169 | P | Cross-instance relay working via copy/paste; 4 agents vs 3 live instances confusing; 5 CCC-IDs vs 9 Context Volleys redundant; no on-chain details visible; want automated relay without copy/paste | — |
+| RMN_2026-W08_170 | R | Root causes: (1) Agents=4 was duplicate CONNECT events from re-registration after restarts — fixed to COUNT(DISTINCT agent_id); (2) CCC-IDs in-memory resets but volleys persistent in TimescaleDB — fixed to Math.max(in-mem, persistent); (3) Context Volleys = CCC-IDs (same thing), replaced with HCS Attested = connects+volleys total; (4) OnchainFeed already existed (On-Chain tab) but filtered to current agent and missing payload detail — now shows all events with cccId/to/instance + HashScan link; (5) Copy/paste not needed — gateway routes directly via instance selector; added Relay button on AI messages for one-click cross-instance forwarding. Pushed 85b3ba4 | `85b3ba4` |
+| RMN_2026-W08_171 | P | Server rebuild commands for 85b3ba4 | — |
+| RMN_2026-W08_172 | R | cd /opt/ccc && git pull origin roman/infra-deploy && pnpm --filter gateway build && pm2 reload ccc-gateway && pnpm --filter web build && pm2 reload ccc-web | — |
 
 ---
 
@@ -134,14 +138,14 @@
 - OnchainIndex: lastIndexedBlock=41539 ✅
 - API smoke tests: /connect ✅ /ccc-id ✅ /stats ✅ (registeredAgents:1, totalCCCIds:1, hcsMessages:2)
 - CORS fix applied ✅ (gateway rebuilt, Launch Gateway works)
-- Web + gateway rebuild pending (438c0ed): instance selector, stats persistence, liveInstances, instanceId routing
+- Web + gateway rebuild pending (85b3ba4): unique agents, hcsAttested, relay button, OnchainFeed all-events detail
 
 ---
 
 ## Running Totals
 
-- **Prompts issued:** ~80 (097–168)
-- **Responses delivered:** ~80
-- **Commits authored:** 16
+- **Prompts issued:** ~84 (097–172)
+- **Responses delivered:** ~84
+- **Commits authored:** 17
 - **Files modified:** 12+
 - **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅ (local only)
