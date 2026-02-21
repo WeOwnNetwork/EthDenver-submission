@@ -147,7 +147,8 @@ export function ChatPanel() {
                     setMessages((prev) => [...prev, assistantMsg]);
                 }
             } else {
-                throw new Error(gwResult.error || "Volley failed");
+                const e = gwResult.error as any;
+                throw new Error(typeof e === "object" ? (e?.message ?? JSON.stringify(e)) : e || "Volley failed");
             }
         } catch (err) {
             toast.error(`Error: ${err}`);
