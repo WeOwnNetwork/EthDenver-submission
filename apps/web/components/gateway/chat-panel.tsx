@@ -5,7 +5,7 @@ import { useAppStore, type PersistedChatMessage } from "@/lib/store";
 import { useSendVolley } from "@/lib/gateway-client";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Send, Hash, Zap, MessageSquare } from "lucide-react";
+import { Send, Hash, Zap, MessageSquare, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +25,6 @@ interface Message {
 export function ChatPanel() {
     const {
         ccc,
-        llmProvider,
-        llmModel,
-        llmConfig,
         walletAddress,
         getSessionKey,
         setChatHistory,
@@ -40,9 +37,16 @@ export function ChatPanel() {
         [address, walletAddress, ccc, getSessionKey]
     );
 
+    const INSTANCES = [
+        { id: "INT-E01", label: "E01", name: "The Hands" },
+        { id: "INT-OG8", label: "OG8", name: "RomanDiD" },
+        { id: "INT-P01", label: "P01", name: "WeOwn" },
+    ];
+
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isThinking, setIsThinking] = useState(false);
+    const [targetInstance, setTargetInstance] = useState("INT-E01");
     const scrollRef = useRef<HTMLDivElement>(null);
     const sendVolley = useSendVolley();
 
@@ -50,10 +54,10 @@ export function ChatPanel() {
         () => ({
             id: "welcome",
             role: "system",
-            content: `Welcome to CCC Gateway, AI:@${ccc}! 🤝\n\nYou're connected to #FedArch with **${llmProvider}** (${llmModel}).\n\nType a message to start contributing. Every interaction generates a CCC-ID attested to Hedera.`,
+            content: `Welcome to CCC Gateway, AI:@${ccc}! 🤝\n\nYou're connected to #FedArch — select an instance below and send a message. Every interaction generates a CCC-ID attested to Hedera HCS.`,
             timestamp: new Date(),
         }),
-        [ccc, llmProvider, llmModel]
+        [ccc]
     );
 
     useEffect(() => {
@@ -114,22 +118,24 @@ export function ChatPanel() {
         setIsThinking(true);
 
         try {
-            // Send as a #ContextVolley — generates CCC-ID + routes to AnythingLLM + attests HCS
+            // Send as a #ContextVolley — generates CCC-ID + routes to selected AnythingLLM instance + attests HCS
             const gwResult = await sendVolley.mutateAsync({
                 from: `AI:@${ccc}`,
                 to: "GTM",
                 volleyType: "SEEK",
                 content: prompt,
                 attest: true,
+                instanceId: targetInstance,
             });
 
             if (gwResult.ok && gwResult.data) {
-                const { cccId, response } = gwResult.data;
+                const { cccId, response, instanceId: respInstance } = gwResult.data;
+                const instLabel = INSTANCES.find(i => i.id === (respInstance || targetInstance))?.label || respInstance || targetInstance;
 
                 const cccIdMsg: Message = {
                     id: crypto.randomUUID(),
                     role: "system",
-                    content: `🆔 **${cccId}** generated (+10 $CCC)`,
+                    content: `🆔 **${cccId}** → ${instLabel} (+10 $CCC) ✅ HCS`,
                     cccId,
                     timestamp: new Date(),
                 };
@@ -140,7 +146,7 @@ export function ChatPanel() {
                         id: crypto.randomUUID(),
                         role: "assistant",
                         content: response,
-                        agentId: `AI:@${ccc}`,
+                        agentId: respInstance || targetInstance,
                         cccId,
                         timestamp: new Date(),
                     };
@@ -174,9 +180,10 @@ export function ChatPanel() {
                     <Badge variant="emerald" className="font-mono text-xs">
                         AI:@{ccc}
                     </Badge>
-                    <div className="ml-auto flex items-center gap-1.5">
+                    <div className="ml-auto flex items-center gap-2">
+                        <Globe className="w-3 h-3 text-slate-500" />
+                        <span className="text-xs text-slate-400 font-mono">{targetInstance}</span>
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-slow" />
-                        <span className="text-xs text-slate-500">Live</span>
                     </div>
                 </h3>
             </div>
@@ -204,7 +211,7 @@ export function ChatPanel() {
                             >
                                 {msg.agentId && (
                                     <div className="text-xs text-cyan-400 font-mono mb-1 flex items-center gap-1">
-                                        <Zap className="w-3 h-3" /> {msg.agentId}
+                                        <Globe className="w-3 h-3" /> {msg.agentId}
                                     </div>
                                 )}
                                 {msg.cccId && (
@@ -254,6 +261,23 @@ export function ChatPanel() {
 
             {/* Input */}
             <div className="p-4 glass">
+                {/* Instance selector */}
+                <div className="flex items-center gap-1 mb-2">
+                    <span className="text-xs text-slate-600 mr-1">To:</span>
+                    {INSTANCES.map((inst) => (
+                        <button
+                            key={inst.id}
+                            onClick={() => setTargetInstance(inst.id)}
+                            className={`text-xs px-2 py-0.5 rounded font-mono transition-colors ${
+                                targetInstance === inst.id
+                                    ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/40"
+                                    : "text-slate-500 hover:text-slate-300 border border-transparent"
+                            }`}
+                        >
+                            {inst.label}
+                        </button>
+                    ))}
+                </div>
                 <div className="flex items-center gap-2">
                     <Input
                         value={input}

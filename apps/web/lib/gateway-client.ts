@@ -70,6 +70,7 @@ export async function sendVolley(data: {
     content?: unknown;
     attest?: boolean;
     threadSlug?: string;
+    instanceId?: string;
 }) {
     return gw<{
         volleyId: string;
@@ -80,6 +81,7 @@ export async function sendVolley(data: {
         status: string;
         response?: string;
         cccId: string;
+        instanceId?: string;
         threadSlug?: string;
     }>("/volley", {
         method: "POST",
@@ -147,6 +149,7 @@ export async function getStats() {
         totalBroadcasts: number;
         hcsMessages: number;
         rulesLocked: number;
+        liveInstances?: number;
         onchain?: {
             totalAgents: number;
             totalCCCIds: number;

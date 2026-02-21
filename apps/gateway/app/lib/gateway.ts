@@ -239,6 +239,19 @@ class CCCGatewaySingleton {
         });
     }
 
+    public async getPersistentCountByType(eventType: string): Promise<number> {
+        if (!this.timescale) return 0;
+        try {
+            const res = await this.timescale.query<{ total: string }>(
+                `SELECT COUNT(*)::text AS total FROM volley_events WHERE event_type = $1`,
+                [eventType]
+            );
+            return Number(res.rows[0]?.total || 0);
+        } catch {
+            return 0;
+        }
+    }
+
     public async getPersistentEventCount(agent?: string): Promise<number> {
         if (!this.timescale) return 0;
 
@@ -320,17 +333,22 @@ class CCCGatewaySingleton {
     }
 
     public async getStats() {
-        const onchainStats = await this.onchainIndexer.getOnchainStats();
-        const indexSnapshot = this.onchainIndexer.getSnapshot();
-        const persistence = await this.getPersistenceDiagnostics();
+        const [onchainStats, indexSnapshot, persistence, persistentAgents, persistentVolleys] =
+            await Promise.all([
+                this.onchainIndexer.getOnchainStats(),
+                Promise.resolve(this.onchainIndexer.getSnapshot()),
+                this.getPersistenceDiagnostics(),
+                this.getPersistentCountByType('CONNECT'),
+                this.getPersistentCountByType('VOLLEY'),
+            ]);
 
         return {
             instance: this.instance,
             season: this.season,
             uptime: (Date.now() - this.startTime.getTime()) / 1000,
-            registeredAgents: this.agentRegistry.count(),
+            registeredAgents: Math.max(this.agentRegistry.count(), persistentAgents),
             totalCCCIds: this.cccGen.getTotalGenerated(),
-            totalVolleys: this.totalVolleys,
+            totalVolleys: Math.max(this.totalVolleys, persistentVolleys),
             totalBroadcasts: this.totalBroadcasts,
             hcsMessages: this.hcs.getStats().messageCount,
             rulesLocked: this.kernel.getLockedCount(),

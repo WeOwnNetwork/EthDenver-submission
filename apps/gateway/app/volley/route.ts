@@ -13,9 +13,9 @@ export const POST = async (request: Request): Promise<Response> => {
 
         const volleyId = crypto.randomUUID();
 
-        // Step 1: Resolve target instance
+        // Step 1: Resolve target instance (instanceId overrides agent registry lookup)
         const targetAgent = gateway.agentRegistry.get(parsed.to);
-        const homeInstance = targetAgent?.homeInstance || "INT-E01";
+        const homeInstance = parsed.instanceId || targetAgent?.homeInstance || "INT-E01";
 
         // Step 2: Generate CCC-ID for this volley
         // Strip "AI:@" prefix — cccGen expects bare 3-char CCC code
@@ -118,6 +118,7 @@ export const POST = async (request: Request): Promise<Response> => {
                 status: deliveryStatus,
                 response: aiResponse || undefined,
                 cccId: cccId.id,
+                instanceId: homeInstance,
                 threadSlug: resolvedThreadSlug,
             },
             timestamp: new Date().toISOString(),

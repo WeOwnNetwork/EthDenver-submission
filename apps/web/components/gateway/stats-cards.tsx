@@ -29,8 +29,8 @@ export function StatsCards() {
             glowClass: "glow-cyan",
         },
         {
-            label: "Active Volleys",
-            value: stats?.totalVolleys ?? 0,
+            label: "Context Volleys",
+            value: stats?.totalVolleys || 0,
             icon: Radio,
             color: "text-violet-400",
             bgColor: "bg-violet-500/10",
@@ -38,8 +38,8 @@ export function StatsCards() {
             glowClass: "glow-violet",
         },
         {
-            label: "ISC Certified",
-            value: stats?.onchain?.totalVSAs || stats?.hcsMessages || 0,
+            label: "Live Instances",
+            value: stats?.liveInstances ?? 0,
             icon: Shield,
             color: "text-amber-400",
             bgColor: "bg-amber-500/10",
