@@ -75,6 +75,8 @@
 | RMN_2026-W08_144 | R | Root cause: error field in catch block not in inferred return type — removed it; deploy.sh also updated to build hedera first; pushed fix f84f990 | `f84f990` |
 | RMN_2026-W08_145 | P | Give all commands to set up and test everything | — |
 | RMN_2026-W08_146 | R | Full ordered command sequence: git pull → build hedera → build gateway → web .env.local → build web → pm2 start gateway → verify local + HTTPS | — |
+| RMN_2026-W08_147 | P | Gateway build success, both pm2 processes online, /health returns healthy JSON locally + over HTTPS | — |
+| RMN_2026-W08_148 | R | DEPLOYMENT CONFIRMED LIVE ✅ — api.ethdenver2026.payless.tax/health healthy, TimescaleDB connected, onchain index running; next: pm2 save + smoke test /connect /ccc-id /stats + open UI in browser | — |
 
 ---
 
@@ -101,18 +103,20 @@
 - SSH key: ~/DO-ETHDenver (private) + ~/DO-ETHDenver.pub (public, added to droplet)
 - SSH alias: `Host ethdenver-buidlathon` → 134.199.195.88
 
-## Server Status (as of CCC-146)
-- Node 20 ✅ | pnpm 9.15.9 ✅ | pm2 6.0.14 ✅ | nginx ✅ | certbot ✅
-- SSL certs: both subdomains issued ✅ (expires 2026-05-22)
-- Web (port 3001): built ✅ + ccc-web online ✅ + ethdenver2026.payless.tax → 307/gateway ✅
-- Gateway (port 3002): TS fix pushed — awaiting server pull + rebuild → pm2 start
+## Server Status (as of CCC-148) ✅ FULLY DEPLOYED
+- Node 20 ✅ | pnpm ✅ | pm2 ✅ | nginx ✅ | certbot ✅
+- SSL: both subdomains live (expires 2026-05-22) ✅
+- Web: https://ethdenver2026.payless.tax → 307/gateway ✅
+- Gateway: https://api.ethdenver2026.payless.tax/health → {"status":"healthy","instance":"INT-E01","season":3} ✅
+- TimescaleDB: eventsCount=4, metricsCount=4 ✅
+- OnchainIndex: lastIndexedBlock=41477 ✅
 
 ---
 
 ## Running Totals
 
-- **Prompts issued:** ~58 (097–146)
-- **Responses delivered:** ~58
+- **Prompts issued:** ~60 (097–148)
+- **Responses delivered:** ~60
 - **Commits authored:** 10
 - **Files modified:** 12+
 - **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅ (local only)
