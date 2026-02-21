@@ -18,6 +18,9 @@ git pull origin "$BRANCH"
 echo "==> Installing dependencies..."
 pnpm install --frozen-lockfile
 
+echo "==> Building @repo/hedera (required by gateway)..."
+pnpm --filter @repo/hedera build
+
 echo "==> Building gateway..."
 pnpm --filter gateway build
 
