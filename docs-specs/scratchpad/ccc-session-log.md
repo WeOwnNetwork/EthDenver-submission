@@ -59,6 +59,16 @@
 | RMN_2026-W08_128 | R | Full .env server cmd, architecture explained, subdomain plan (UI=ethdenver2026, API=api.ethdenver2026), nginx updated, step-by-step next | `0af7a7b` |
 | RMN_2026-W08_129 | P | SSH key auth failure (Permission denied), then Connection refused — how to fix? + explain commands | — |
 | RMN_2026-W08_130 | R | Diagnosed DO Cloud Firewall blocking port 22; Option A (add inbound rule) + Option B (DO Console fallback); explained -i flag + SSH config alias | — |
+| RMN_2026-W08_131 | P | server-setup.sh failed: dpkg was interrupted error | — |
+| RMN_2026-W08_132 | R | Fix: run `dpkg --configure -a` then re-run setup script | — |
+| RMN_2026-W08_133 | P | openssh-server config dialog — what to select? | — |
+| RMN_2026-W08_134 | R | Select "keep the local version currently installed", press Enter | — |
+| RMN_2026-W08_135 | P | Explain ALL commands + subdomain file updates + cluster name is ethdenver-buidlathon | — |
+| RMN_2026-W08_136 | R | Full command-by-command explanations; fixed deploy.sh health URL; updated apps/web/.env.local to prod API URL; SSH alias = ethdenver-buidlathon | `4850ec4` |
+| RMN_2026-W08_137 | P | DO Console SSH connection lost, can't run commands | — |
+| RMN_2026-W08_138 | R | WebSocket timeout — refresh browser or reopen Console; power cycle if droplet frozen | — |
+| RMN_2026-W08_139 | P | Full server output — gateway build failed, 502 on api subdomain, web running on 3001 | — |
+| RMN_2026-W08_140 | R | Root cause: @repo/hedera not built — dist/ missing on server. Fix: build hedera → rebuild gateway → create web .env.local → rebuild web → pm2 reload both | — |
 
 ---
 
@@ -73,19 +83,28 @@
 | `c45bd7a` | chore: gitignore .data/ runtime cache, remove netlify.toml |
 | `17cda93` | chore: DO deployment scripts, pm2 ecosystem, nginx config, session log |
 | `0af7a7b` | fix: nginx subdomains — UI on ethdenver2026, gateway on api.ethdenver2026 |
+| `4850ec4` | fix: deploy.sh health URL → api subdomain; web .env.local → prod API URL |
 
 ## Deployment Infrastructure Decisions
 - Gateway: `api.ethdenver2026.payless.tax` → port 3002 (DO droplet)
 - UI: `ethdenver2026.payless.tax` → port 3001 (DO droplet, same server)
 - Droplet IP: 134.199.195.88 (public IPv4)
+- Droplet name: `ethdenver-buidlathon`
 - SSH key: ~/DO-ETHDenver (private) + ~/DO-ETHDenver.pub (public, added to droplet)
+- SSH alias: `Host ethdenver-buidlathon` → 134.199.195.88
+
+## Server Status (as of CCC-140)
+- Node 20 ✅ | pnpm 9.15.9 ✅ | pm2 6.0.14 ✅ | nginx ✅ | certbot ✅
+- SSL certs: both subdomains issued ✅ (expires 2026-05-22)
+- Web (port 3001): built + running ✅ (but needs rebuild with prod NEXT_PUBLIC_API_URL)
+- Gateway (port 3002): build FAILED — @repo/hedera dist/ missing → pm2 crashing → 502 ❌
 
 ---
 
 ## Running Totals
 
-- **Prompts issued:** ~36 (097–130)
-- **Responses delivered:** ~36
-- **Commits authored:** 7
-- **Files modified:** 10+
-- **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅
+- **Prompts issued:** ~50 (097–140)
+- **Responses delivered:** ~50
+- **Commits authored:** 8
+- **Files modified:** 12+
+- **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅ (local only)
