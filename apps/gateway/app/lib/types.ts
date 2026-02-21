@@ -32,6 +32,7 @@ export const VolleySchema = z.object({
     ref: z.string().optional(),
     content: z.any(),
     attest: z.boolean().default(false),
+    threadSlug: z.string().optional(),
 });
 
 export const BroadcastSchema = z.object({

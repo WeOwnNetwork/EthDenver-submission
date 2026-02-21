@@ -36,12 +36,14 @@ export const POST = async (request: Request): Promise<Response> => {
         // Step 3: Forward to AnythingLLM (if remote or configured)
         let aiResponse = "";
         let deliveryStatus = "delivered";
+        let resolvedThreadSlug: string | undefined;
 
         if (parsed.volleyType === "SEEK" && parsed.to === "GTM") {
             // Special handling for SEEK to GTM as per diagram 2
-            const result = await sendToAnythingLLM(homeInstance, parsed.from, JSON.stringify(parsed.content));
+            const result = await sendToAnythingLLM(homeInstance, parsed.from, JSON.stringify(parsed.content), parsed.threadSlug);
             if (result) {
                 aiResponse = result.response;
+                resolvedThreadSlug = result.threadSlug;
             } else {
                 deliveryStatus = "forwarded";
             }
@@ -50,8 +52,11 @@ export const POST = async (request: Request): Promise<Response> => {
              if (result) aiResponse = result.response;
         } else {
             // Generic forwarding
-            const result = await sendToAnythingLLM(homeInstance, parsed.from, JSON.stringify(parsed.content));
-            if (result) aiResponse = result.response;
+            const result = await sendToAnythingLLM(homeInstance, parsed.from, JSON.stringify(parsed.content), parsed.threadSlug);
+            if (result) {
+                aiResponse = result.response;
+                resolvedThreadSlug = result.threadSlug;
+            }
         }
 
         // Step 4: Attest to HCS (parallel-ish)
@@ -111,6 +116,7 @@ export const POST = async (request: Request): Promise<Response> => {
                 status: deliveryStatus,
                 response: aiResponse || undefined,
                 cccId: cccId.id,
+                threadSlug: resolvedThreadSlug,
             },
             timestamp: new Date().toISOString(),
             instance: gateway.instance,
