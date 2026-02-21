@@ -54,7 +54,11 @@
 | RMN_2026-W08_123 | P | "are any of current build warnings a problem?" | — |
 | RMN_2026-W08_124 | R | Comprehensive status: warnings diagnosed; SSL confirmed fixed; .data/ gitignored; DO deployment recommended; main reset to 96132cb; .vercelignore updated | `c45bd7a` |
 | RMN_2026-W08_125 | P | "give me message to Dhruv + CCC-ID log + DO droplet walkthrough" | — |
-| RMN_2026-W08_126 | R | This response — Dhruv message, session log created, DO setup walkthrough | this doc |
+| RMN_2026-W08_126 | R | Dhruv message, session log created, DO setup walkthrough, deployment scripts committed | `17cda93` |
+| RMN_2026-W08_127 | P | API keys provided + Docker q + Gateway vs UI architecture + subdomain structure + droplet live (134.199.195.88) | — |
+| RMN_2026-W08_128 | R | Full .env server cmd, architecture explained, subdomain plan (UI=ethdenver2026, API=api.ethdenver2026), nginx updated, step-by-step next | `0af7a7b` |
+| RMN_2026-W08_129 | P | SSH key auth failure (Permission denied), then Connection refused — how to fix? + explain commands | — |
+| RMN_2026-W08_130 | R | Diagnosed DO Cloud Firewall blocking port 22; Option A (add inbound rule) + Option B (DO Console fallback); explained -i flag + SSH config alias | — |
 
 ---
 
@@ -67,13 +71,21 @@
 | `d2ce048` | feat: per-agent thread routing (Option 2+4), threadSlug in VolleySchema + volley route |
 | `934a8fb` | fix: TimescaleDB SSL, health graceful degradation, Foundry ABI artifacts, deployed-addresses.json, bridge timeout 45s |
 | `c45bd7a` | chore: gitignore .data/ runtime cache, remove netlify.toml |
+| `17cda93` | chore: DO deployment scripts, pm2 ecosystem, nginx config, session log |
+| `0af7a7b` | fix: nginx subdomains — UI on ethdenver2026, gateway on api.ethdenver2026 |
+
+## Deployment Infrastructure Decisions
+- Gateway: `api.ethdenver2026.payless.tax` → port 3002 (DO droplet)
+- UI: `ethdenver2026.payless.tax` → port 3001 (DO droplet, same server)
+- Droplet IP: 134.199.195.88 (public IPv4)
+- SSH key: ~/DO-ETHDenver (private) + ~/DO-ETHDenver.pub (public, added to droplet)
 
 ---
 
 ## Running Totals
 
-- **Prompts issued:** ~30 (097–126)
-- **Responses delivered:** ~30
-- **Commits authored:** 5
+- **Prompts issued:** ~36 (097–130)
+- **Responses delivered:** ~36
+- **Commits authored:** 7
 - **Files modified:** 10+
 - **Endpoints tested:** /health ✅ /connect ✅ /ccc-id ✅ /volley ✅
