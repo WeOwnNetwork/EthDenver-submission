@@ -10,6 +10,9 @@ import { bootstrapAnvilMicroservice } from "./anvil-microservice";
 import { env } from "../../env";
 import crypto from "crypto";
 
+// Allow self-signed TLS cert chains (TimescaleDB Cloud)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
 // ═══════════════════════════════════════════════════════
 // CCC GATEWAY SINGLETON — next-forge API
 //
@@ -223,6 +226,7 @@ class CCCGatewaySingleton {
                 typeof row.payload === "string"
                     ? safeParseJson(row.payload)
                     : (row.payload as Record<string, unknown> | null);
+            const p = payload as Record<string, unknown> | null;
 
             return {
                 id: row.event_id,
@@ -232,8 +236,36 @@ class CCCGatewaySingleton {
                 summary: buildEventSummary(row.event_type, row.agent_id, payload),
                 status: row.status,
                 source: "timescaledb" as const,
+                cccId: (p?.cccId as string) || undefined,
+                to: (p?.to as string) || undefined,
+                instance: (p?.instance as string) || undefined,
             };
         });
+    }
+
+    public async getPersistentUniqueAgentCount(): Promise<number> {
+        if (!this.timescale) return this.agentRegistry.count();
+        try {
+            const res = await this.timescale.query<{ total: string }>(
+                `SELECT COUNT(DISTINCT agent_id)::text AS total FROM volley_events WHERE event_type = 'CONNECT'`
+            );
+            return Number(res.rows[0]?.total || 0);
+        } catch {
+            return this.agentRegistry.count();
+        }
+    }
+
+    public async getPersistentCountByType(eventType: string): Promise<number> {
+        if (!this.timescale) return 0;
+        try {
+            const res = await this.timescale.query<{ total: string }>(
+                `SELECT COUNT(*)::text AS total FROM volley_events WHERE event_type = $1`,
+                [eventType]
+            );
+            return Number(res.rows[0]?.total || 0);
+        } catch {
+            return 0;
+        }
     }
 
     public async getPersistentEventCount(agent?: string): Promise<number> {
@@ -264,18 +296,27 @@ class CCCGatewaySingleton {
             };
         }
 
-        const [eventsCountRes, metricsCountRes, latestEventRes] = await Promise.all([
-            this.timescale.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM volley_events`),
-            this.timescale.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM agent_metrics`),
-            this.timescale.query<{ latest: string | null }>(`SELECT MAX(time)::text AS latest FROM volley_events`),
-        ]);
+        try {
+            const [eventsCountRes, metricsCountRes, latestEventRes] = await Promise.all([
+                this.timescale.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM volley_events`),
+                this.timescale.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM agent_metrics`),
+                this.timescale.query<{ latest: string | null }>(`SELECT MAX(time)::text AS latest FROM volley_events`),
+            ]);
 
-        return {
-            enabled: true,
-            eventsCount: Number(eventsCountRes.rows[0]?.total || 0),
-            metricsCount: Number(metricsCountRes.rows[0]?.total || 0),
-            latestEventAt: latestEventRes.rows[0]?.latest || null,
-        };
+            return {
+                enabled: true,
+                eventsCount: Number(eventsCountRes.rows[0]?.total || 0),
+                metricsCount: Number(metricsCountRes.rows[0]?.total || 0),
+                latestEventAt: latestEventRes.rows[0]?.latest || null,
+            };
+        } catch {
+            return {
+                enabled: true,
+                eventsCount: 0,
+                metricsCount: 0,
+                latestEventAt: null,
+            };
+        }
     }
 
     public async logMetric(data: {
@@ -308,19 +349,26 @@ class CCCGatewaySingleton {
     }
 
     public async getStats() {
-        const onchainStats = await this.onchainIndexer.getOnchainStats();
-        const indexSnapshot = this.onchainIndexer.getSnapshot();
-        const persistence = await this.getPersistenceDiagnostics();
+        const [onchainStats, indexSnapshot, persistence, uniqueAgents, persistentVolleys, persistentConnects] =
+            await Promise.all([
+                this.onchainIndexer.getOnchainStats(),
+                Promise.resolve(this.onchainIndexer.getSnapshot()),
+                this.getPersistenceDiagnostics(),
+                this.getPersistentUniqueAgentCount(),
+                this.getPersistentCountByType('VOLLEY'),
+                this.getPersistentCountByType('CONNECT'),
+            ]);
 
         return {
             instance: this.instance,
             season: this.season,
             uptime: (Date.now() - this.startTime.getTime()) / 1000,
-            registeredAgents: this.agentRegistry.count(),
-            totalCCCIds: this.cccGen.getTotalGenerated(),
-            totalVolleys: this.totalVolleys,
+            registeredAgents: Math.max(this.agentRegistry.count(), uniqueAgents),
+            totalCCCIds: Math.max(this.cccGen.getTotalGenerated(), persistentVolleys),
+            totalVolleys: Math.max(this.totalVolleys, persistentVolleys),
             totalBroadcasts: this.totalBroadcasts,
             hcsMessages: this.hcs.getStats().messageCount,
+            hcsAttested: persistentConnects + persistentVolleys,
             rulesLocked: this.kernel.getLockedCount(),
             onchain: onchainStats,
             onchainIndex: indexSnapshot,

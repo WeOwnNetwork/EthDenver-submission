@@ -1,0 +1,30 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-02-19",
+  "deployer": "0x8e09313339f58a359333e56a655786c1cf2275a0",
+  "contracts": {
+    "CCCGovernanceToken":       "0xe5cbD77A2896Da99808DD2B586Cbb13e70Ca6F0A",
+    "SharedKernelRegistry":     "0xD26e9EAA53a894994Bf1093a778a7967e4885713",
+    "SeasonRegistry":           "0x1248751972D770A272dfb67e355323453e63C6eF",
+    "ISCRegistry":              "0x956e62E019Db89FCfb3d2d7e91132CC498F08347",
+    "BadAgentRegistry":         "0xA2a9640f56b5ca0D8e743e8D88Ba4eD0b8ca51a4",
+    "AgentIdentityRegistry":    "0x8005122C7dA446D0610c73F8391bd54f588b9E53",
+    "AgentReputationRegistry":  "0xd0D0f817dF95bAcD5028Cb95Ae51E91e65a0F2C0",
+    "AgentValidationRegistry":  "0x98C6cB0453e34759d7Cf7eF19c28656db1E4cf2A",
+    "VSARegistry":              "0x07939C49542Ae61B57B50C2BE277D933A7063BB4",
+    "DocumentRegistry":         "0x4F4B3E2Bd18a81f79D672fa5e467bF1d02fb24FA",
+    "CCCIdRegistry":            "0x50569c44Daa4A57b9cf719204407B76006f62A07"
+  },
+  "explorer": "https://sepolia.basescan.org",
+  "hcsTopics": {
+    "cccId":          "0.0.7995752",
+    "contextVolley":  "0.0.7995753",
+    "governance":     "0.0.7995615",
+    "vsa":            "0.0.7995754",
+    "agentRegistry":  "0.0.7995755",
+    "season":         "0.0.7995756"
+  },
+  "hederaNetwork": "testnet",
+  "hederaExplorer": "https://hashscan.io/testnet"
+}

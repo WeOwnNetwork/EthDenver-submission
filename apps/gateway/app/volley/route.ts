@@ -12,14 +12,15 @@ export const POST = async (request: Request): Promise<Response> => {
         const parsed = VolleySchema.parse(body);
 
         const volleyId = crypto.randomUUID();
-        gateway.totalVolleys++;
 
-        // Step 1: Resolve target instance
+        // Step 1: Resolve target instance (instanceId overrides agent registry lookup)
         const targetAgent = gateway.agentRegistry.get(parsed.to);
-        const homeInstance = targetAgent?.homeInstance || "INT-E01";
+        const homeInstance = parsed.instanceId || targetAgent?.homeInstance || "INT-E01";
 
         // Step 2: Generate CCC-ID for this volley
-        const cccId = gateway.cccGen.generate(parsed.from, 0);
+        // Strip "AI:@" prefix — cccGen expects bare 3-char CCC code
+        const fromCcc = parsed.from.startsWith("AI:@") ? parsed.from.slice(4) : parsed.from;
+        const cccId = gateway.cccGen.generate(fromCcc, 0);
         if (!cccId) {
             return NextResponse.json<GatewayResponse>(
                 {
@@ -31,27 +32,33 @@ export const POST = async (request: Request): Promise<Response> => {
                 { status: 429 }
             );
         }
-        gateway.agentRegistry.incrementCCCId(parsed.from);
+        gateway.totalVolleys++;
+        gateway.agentRegistry.incrementCCCId(fromCcc);
 
         // Step 3: Forward to AnythingLLM (if remote or configured)
         let aiResponse = "";
         let deliveryStatus = "delivered";
+        let resolvedThreadSlug: string | undefined;
 
         if (parsed.volleyType === "SEEK" && parsed.to === "GTM") {
             // Special handling for SEEK to GTM as per diagram 2
-            const result = await sendToAnythingLLM(homeInstance, parsed.from, JSON.stringify(parsed.content));
+            const result = await sendToAnythingLLM(homeInstance, fromCcc, JSON.stringify(parsed.content), parsed.threadSlug);
             if (result) {
                 aiResponse = result.response;
+                resolvedThreadSlug = result.threadSlug;
             } else {
                 deliveryStatus = "forwarded";
             }
         } else if (parsed.ref?.startsWith("SEEK:META")) {
-             const result = await sendToMetaAgent(parsed.from, JSON.stringify(parsed.content));
+             const result = await sendToMetaAgent(fromCcc, JSON.stringify(parsed.content));
              if (result) aiResponse = result.response;
         } else {
             // Generic forwarding
-            const result = await sendToAnythingLLM(homeInstance, parsed.from, JSON.stringify(parsed.content));
-            if (result) aiResponse = result.response;
+            const result = await sendToAnythingLLM(homeInstance, fromCcc, JSON.stringify(parsed.content), parsed.threadSlug);
+            if (result) {
+                aiResponse = result.response;
+                resolvedThreadSlug = result.threadSlug;
+            }
         }
 
         // Step 4: Attest to HCS (parallel-ish)
@@ -111,6 +118,8 @@ export const POST = async (request: Request): Promise<Response> => {
                 status: deliveryStatus,
                 response: aiResponse || undefined,
                 cccId: cccId.id,
+                instanceId: homeInstance,
+                threadSlug: resolvedThreadSlug,
             },
             timestamp: new Date().toISOString(),
             instance: gateway.instance,

@@ -7,9 +7,17 @@ import { env } from "../../env";
 // The gateway uses these keys to send #ContextVolleys
 // to agents on remote instances and get live responses.
 //
+// Thread routing (Option 2 + 4):
+//   - Per-agent persistent threads created on first volley
+//   - Cached in-memory for the gateway process lifetime
+//   - Caller may override with an explicit threadSlug
+//
 // Without API keys → volleys stay local
 // With API keys → volleys cross instances with live AI
 // ═══════════════════════════════════════════════════════
+
+// Thread cache key: "fromCCC:instanceId" → threadSlug
+const threadCache = new Map<string, string>();
 
 interface InstanceConfig {
   url: string | undefined;
@@ -56,30 +64,78 @@ export function getConfiguredInstances(): string[] {
     .map(([id]) => id);
 }
 
-export async function sendToAnythingLLM(
+// Creates a named thread on the target instance for the given CCC agent.
+// Returns the thread slug on success, null on failure.
+async function createThread(
   instanceId: string,
-  fromCcc: string,
-  message: string
-): Promise<{ response: string; instanceId: string } | null> {
+  fromCcc: string
+): Promise<string | null> {
   const config = INSTANCES[instanceId];
   if (!config?.url || !config?.apiKey) return null;
 
   try {
     const res = await fetch(
-      `${config.url}/api/v1/workspace/${config.workspace}/chat`,
+      `${config.url}/api/v1/workspace/${config.workspace}/thread/new`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${config.apiKey}`,
         },
-        body: JSON.stringify({
-          message: `#ContextVolley from AI:@${fromCcc}: ${message}`,
-          mode: "chat",
-        }),
-        signal: AbortSignal.timeout(15_000),
+        body: JSON.stringify({ name: fromCcc }),
+        signal: AbortSignal.timeout(10_000),
       }
     );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.thread?.slug ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Returns the cached thread slug for this agent↔instance pair,
+// creating a new thread on-demand if one doesn't exist yet.
+async function getOrCreateThread(
+  instanceId: string,
+  fromCcc: string
+): Promise<string | null> {
+  const key = `${fromCcc}:${instanceId}`;
+  if (threadCache.has(key)) return threadCache.get(key)!;
+  const slug = await createThread(instanceId, fromCcc);
+  if (slug) threadCache.set(key, slug);
+  return slug;
+}
+
+export async function sendToAnythingLLM(
+  instanceId: string,
+  fromCcc: string,
+  message: string,
+  threadSlug?: string  // Option 4: caller-specified thread override
+): Promise<{ response: string; instanceId: string; threadSlug?: string } | null> {
+  const config = INSTANCES[instanceId];
+  if (!config?.url || !config?.apiKey) return null;
+
+  // Resolve thread: explicit override → cached/auto-created → workspace default
+  const resolvedSlug = threadSlug ?? await getOrCreateThread(instanceId, fromCcc);
+
+  const endpoint = resolvedSlug
+    ? `${config.url}/api/v1/workspace/${config.workspace}/thread/${resolvedSlug}/chat`
+    : `${config.url}/api/v1/workspace/${config.workspace}/chat`;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        message: `#ContextVolley from AI:@${fromCcc}: ${message}`,
+        mode: "chat",
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
 
     if (!res.ok) return null;
 
@@ -87,6 +143,7 @@ export async function sendToAnythingLLM(
     return {
       response: data.textResponse || "(no response)",
       instanceId,
+      threadSlug: resolvedSlug ?? undefined,
     };
   } catch (error) {
     console.error(`AnythingLLM Bridge Error (${instanceId}):`, error);

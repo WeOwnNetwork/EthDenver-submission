@@ -28,10 +28,12 @@ export const CCCIdRequestSchema = z.object({
 export const VolleySchema = z.object({
     from: z.string(),
     to: z.string().length(3).regex(/^[A-Z]{3}$/),
+    instanceId: z.string().optional(),
     volleyType: z.enum(["SEEK", "ACK", "STATUS", "ALERT"]).default("SEEK"),
     ref: z.string().optional(),
     content: z.any(),
     attest: z.boolean().default(false),
+    threadSlug: z.string().optional(),
 });
 
 export const BroadcastSchema = z.object({

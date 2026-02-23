@@ -2,11 +2,10 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAppStore, type PersistedChatMessage } from "@/lib/store";
-import { useGenerateCCCId, useCallLLM } from "@/lib/gateway-client";
-import { type ChatMessage as LLMMessage } from "@repo/ai-providers/chat";
+import { useSendVolley } from "@/lib/gateway-client";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Send, Hash, Zap, MessageSquare } from "lucide-react";
+import { Send, Hash, Zap, MessageSquare, Globe, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -26,9 +25,6 @@ interface Message {
 export function ChatPanel() {
     const {
         ccc,
-        llmProvider,
-        llmModel,
-        llmConfig,
         walletAddress,
         getSessionKey,
         setChatHistory,
@@ -41,21 +37,29 @@ export function ChatPanel() {
         [address, walletAddress, ccc, getSessionKey]
     );
 
+    const INSTANCES = [
+        { id: "INT-E01", label: "E01", name: "The Hands" },
+        { id: "INT-OG8", label: "OG8", name: "RomanDiD" },
+        { id: "INT-P01", label: "P01", name: "WeOwn" },
+    ];
+
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isThinking, setIsThinking] = useState(false);
+    const [targetInstance, setTargetInstance] = useState("INT-E01");
+    const [relayingFor, setRelayingFor] = useState<string | null>(null);
+    const [isRelaying, setIsRelaying] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const generateCCCId = useGenerateCCCId();
-    const llm = useCallLLM();
+    const sendVolley = useSendVolley();
 
     const defaultWelcome = useMemo<Message>(
         () => ({
             id: "welcome",
             role: "system",
-            content: `Welcome to CCC Gateway, AI:@${ccc}! 🤝\n\nYou're connected to #FedArch with **${llmProvider}** (${llmModel}).\n\nType a message to start contributing. Every interaction generates a CCC-ID attested to Hedera.`,
+            content: `Welcome to CCC Gateway, AI:@${ccc}! 🤝\n\nYou're connected to #FedArch — select an instance below and send a message. Every interaction generates a CCC-ID attested to Hedera HCS.`,
             timestamp: new Date(),
         }),
-        [ccc, llmProvider, llmModel]
+        [ccc]
     );
 
     useEffect(() => {
@@ -116,54 +120,44 @@ export function ChatPanel() {
         setIsThinking(true);
 
         try {
-            // Generate CCC-ID for this interaction
-            const cccResult = await generateCCCId.mutateAsync({
-                ccc: ccc!,
-                workspace: "CCC",
+            // Send as a #ContextVolley — generates CCC-ID + routes to selected AnythingLLM instance + attests HCS
+            const gwResult = await sendVolley.mutateAsync({
+                from: `AI:@${ccc}`,
+                to: "GTM",
+                volleyType: "SEEK",
+                content: prompt,
+                attest: true,
+                instanceId: targetInstance,
             });
 
-            if (cccResult.ok && cccResult.data) {
+            if (gwResult.ok && gwResult.data) {
+                const { cccId, response, instanceId: respInstance } = gwResult.data;
+                const instLabel = INSTANCES.find(i => i.id === (respInstance || targetInstance))?.label || respInstance || targetInstance;
+
                 const cccIdMsg: Message = {
                     id: crypto.randomUUID(),
                     role: "system",
-                    content: `🆔 **${cccResult.data.id}** generated (+${cccResult.data.reward} $CCC)`,
-                    cccId: cccResult.data.id,
+                    content: `🆔 **${cccId}** → ${instLabel} (+10 $CCC) ✅ HCS`,
+                    cccId,
                     timestamp: new Date(),
                 };
                 setMessages((prev) => [...prev, cccIdMsg]);
+
+                if (response) {
+                    const assistantMsg: Message = {
+                        id: crypto.randomUUID(),
+                        role: "assistant",
+                        content: response,
+                        agentId: respInstance || targetInstance,
+                        cccId,
+                        timestamp: new Date(),
+                    };
+                    setMessages((prev) => [...prev, assistantMsg]);
+                }
+            } else {
+                const e = gwResult.error as any;
+                throw new Error(typeof e === "object" ? (e?.message ?? JSON.stringify(e)) : e || "Volley failed");
             }
-
-            // Call LLM Proxy
-            const llmMessages: LLMMessage[] = [
-                {
-                    role: "system",
-                    content: `You are AI:@${ccc}, a #FedArch agent. Be concise. Use tables when helpful. #LessIsMore.`,
-                },
-                { role: "user", content: prompt },
-            ];
-
-            const gwResult = await llm.mutateAsync({
-                providerId: llmProvider || "ollama",
-                model: llmModel || "llama3.2:3b",
-                config: llmConfig || {},
-                messages: llmMessages,
-            });
-
-            if (!gwResult.ok || !gwResult.data) {
-                throw new Error(gwResult.error || "Failed to get LLM response");
-            }
-
-            const result = gwResult.data;
-
-            const assistantMsg: Message = {
-                id: crypto.randomUUID(),
-                role: "assistant",
-                content: result.content,
-                agentId: `AI:@${ccc}`,
-                cccId: cccResult.ok ? cccResult.data?.id : undefined,
-                timestamp: new Date(),
-            };
-            setMessages((prev) => [...prev, assistantMsg]);
         } catch (err) {
             toast.error(`Error: ${err}`);
             const errorMsg: Message = {
@@ -178,6 +172,33 @@ export function ChatPanel() {
         setIsThinking(false);
     };
 
+    const handleRelay = async (content: string, instId: string) => {
+        setIsRelaying(instId);
+        setRelayingFor(null);
+        try {
+            const gwResult = await sendVolley.mutateAsync({
+                from: `AI:@${ccc}`,
+                to: "GTM",
+                volleyType: "SEEK",
+                content,
+                attest: true,
+                instanceId: instId,
+            });
+            if (gwResult.ok && gwResult.data) {
+                const { cccId, response, instanceId: respInstance } = gwResult.data;
+                const instLabel = INSTANCES.find(i => i.id === (respInstance || instId))?.label || instId;
+                const msgs: Message[] = [
+                    { id: crypto.randomUUID(), role: "system", content: `🆔 **${cccId}** → ${instLabel} (+10 $CCC) ✅ HCS`, cccId, timestamp: new Date() },
+                ];
+                if (response) msgs.push({ id: crypto.randomUUID(), role: "assistant", content: response, agentId: respInstance || instId, cccId, timestamp: new Date() });
+                setMessages(prev => [...prev, ...msgs]);
+            }
+        } catch (err) {
+            toast.error(`Relay failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+        setIsRelaying(null);
+    };
+
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
@@ -188,9 +209,10 @@ export function ChatPanel() {
                     <Badge variant="emerald" className="font-mono text-xs">
                         AI:@{ccc}
                     </Badge>
-                    <div className="ml-auto flex items-center gap-1.5">
+                    <div className="ml-auto flex items-center gap-2">
+                        <Globe className="w-3 h-3 text-slate-500" />
+                        <span className="text-xs text-slate-400 font-mono">{targetInstance}</span>
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-slow" />
-                        <span className="text-xs text-slate-500">Live</span>
                     </div>
                 </h3>
             </div>
@@ -218,7 +240,7 @@ export function ChatPanel() {
                             >
                                 {msg.agentId && (
                                     <div className="text-xs text-cyan-400 font-mono mb-1 flex items-center gap-1">
-                                        <Zap className="w-3 h-3" /> {msg.agentId}
+                                        <Globe className="w-3 h-3" /> {msg.agentId}
                                     </div>
                                 )}
                                 {msg.cccId && (
@@ -229,8 +251,35 @@ export function ChatPanel() {
                                 <div className="text-sm whitespace-pre-wrap leading-relaxed">
                                     {msg.content}
                                 </div>
-                                <div className="text-xs text-slate-500 mt-1.5">
-                                    {msg.timestamp.toLocaleTimeString()}
+                                <div className="flex items-center justify-between mt-1.5">
+                                    <span className="text-xs text-slate-500">{msg.timestamp.toLocaleTimeString()}</span>
+                                    {msg.role === "assistant" && !isThinking && (
+                                        <div className="flex items-center gap-1">
+                                            {relayingFor === msg.id ? (
+                                                <>
+                                                    <span className="text-[10px] text-slate-500">Relay →</span>
+                                                    {INSTANCES.filter(i => i.id !== targetInstance).map(inst => (
+                                                        <button
+                                                            key={inst.id}
+                                                            onClick={() => handleRelay(msg.content, inst.id)}
+                                                            disabled={!!isRelaying}
+                                                            className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-slate-700/50 text-slate-300 hover:bg-emerald-700/40 hover:text-white transition-colors disabled:opacity-50"
+                                                        >
+                                                            {isRelaying === inst.id ? "…" : inst.label}
+                                                        </button>
+                                                    ))}
+                                                    <button onClick={() => setRelayingFor(null)} className="text-[10px] text-slate-600 hover:text-slate-400 ml-0.5">✕</button>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setRelayingFor(msg.id)}
+                                                    className="text-[10px] text-slate-600 hover:text-emerald-400 transition-colors flex items-center gap-0.5"
+                                                >
+                                                    <ArrowRight className="w-2.5 h-2.5" /> Relay
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>
@@ -268,6 +317,23 @@ export function ChatPanel() {
 
             {/* Input */}
             <div className="p-4 glass">
+                {/* Instance selector */}
+                <div className="flex items-center gap-1 mb-2">
+                    <span className="text-xs text-slate-600 mr-1">To:</span>
+                    {INSTANCES.map((inst) => (
+                        <button
+                            key={inst.id}
+                            onClick={() => setTargetInstance(inst.id)}
+                            className={`text-xs px-2 py-0.5 rounded font-mono transition-colors ${
+                                targetInstance === inst.id
+                                    ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/40"
+                                    : "text-slate-500 hover:text-slate-300 border border-transparent"
+                            }`}
+                        >
+                            {inst.label}
+                        </button>
+                    ))}
+                </div>
                 <div className="flex items-center gap-2">
                     <Input
                         value={input}

@@ -56,7 +56,7 @@ export async function generateCCCId(data: {
     workspace?: string;
     externalHighWaterMark?: number;
 }) {
-    return gw<{ id: string; reward: number; hcsTxId?: string }>("/ccc-id", {
+    return gw<{ ccc_id: string; reward: number; hcsTxId?: string }>("/ccc-id", {
         method: "POST",
         body: JSON.stringify(data),
     });
@@ -69,8 +69,21 @@ export async function sendVolley(data: {
     ref?: string;
     content?: unknown;
     attest?: boolean;
+    threadSlug?: string;
+    instanceId?: string;
 }) {
-    return gw("/volley", {
+    return gw<{
+        volleyId: string;
+        from: string;
+        to: string;
+        volleyType: string;
+        attested: boolean;
+        status: string;
+        response?: string;
+        cccId: string;
+        instanceId?: string;
+        threadSlug?: string;
+    }>("/volley", {
         method: "POST",
         body: JSON.stringify(data),
     });
@@ -135,7 +148,9 @@ export async function getStats() {
         totalVolleys: number;
         totalBroadcasts: number;
         hcsMessages: number;
+        hcsAttested?: number;
         rulesLocked: number;
+        liveInstances?: number;
         onchain?: {
             totalAgents: number;
             totalCCCIds: number;
@@ -202,6 +217,8 @@ export interface GatewayEvent {
     summary: string;
     timestamp: string;
     cccId?: string;
+    to?: string;
+    instance?: string;
     txHash?: string;
     source?: "gateway" | "onchain" | "timescaledb";
 }
@@ -281,6 +298,7 @@ export function useSendVolley() {
         mutationFn: sendVolley,
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["gateway-events"] });
+            qc.invalidateQueries({ queryKey: ["gateway-stats"] });
         },
     });
 }
